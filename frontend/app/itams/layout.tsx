@@ -1,0 +1,95 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { LogOut, LayoutDashboard, Package, Menu, Users } from "lucide-react";
+import { useState } from "react";
+
+export default function ITAMLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    router.push("/login");
+  };
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <aside
+        className={`${
+          sidebarOpen ? "w-64" : "w-20"
+        } relative border-r bg-muted/50 transition-all duration-300`}
+      >
+        <div className="p-4 flex items-center justify-between">
+          {sidebarOpen && (
+            <h2 className="text-lg font-semibold">ITAM</h2>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <nav className="space-y-2 p-4">
+          <Link href="/itams">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+            >
+              <LayoutDashboard className="h-5 w-5" />
+              {sidebarOpen && "Dashboard"}
+            </Button>
+          </Link>
+
+          <Link href="/itams/assets">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+            >
+              <Package className="h-5 w-5" />
+              {sidebarOpen && "Assets"}
+            </Button>
+          </Link>
+
+          <Link href="/itams/employees">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+            >
+              <Users className="h-5 w-5" />
+              {sidebarOpen && "Employees"}
+            </Button>
+          </Link>
+        </nav>
+
+        {/* Logout Button */}
+        <div className="absolute bottom-4 left-4 right-4">
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-3"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5" />
+            {sidebarOpen && "Logout"}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        {children}
+      </main>
+    </div>
+  );
+}
