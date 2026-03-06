@@ -2,27 +2,65 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import timedelta
+from typing import List
 
 from app.database import get_db
-from app.models.user import User, UserRole
+from app.models.user import User, Role
 from app.schemas import (
-    UserCreate, UserResponse, LoginRequest, TokenResponse, 
-    RefreshTokenRequest, TokenData
+    UserCreate, UserUpdate, UserResponse, LoginRequest, TokenResponse, 
+    RefreshTokenRequest, TokenData, RoleResponse
 )
 from app.auth import (
     hash_password, verify_password, create_access_token,
     create_refresh_token, decode_token
 )
 from app.config import settings
+from app.dependencies import get_current_user, require_role
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
+# ============== Role Management ==============
+
+@router.get("/roles", response_model=List[RoleResponse])
+def get_roles(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    """Get all available roles. Admin only."""
+    roles = db.query(Role).order_by(Role.code).all()
+    return roles
+
+
+@router.post("/seed-roles", response_model=List[RoleResponse])
+def seed_roles(db: Session = Depends(get_db)):
+    """Seed default roles. Development helper."""
+    default_roles = [
+        {"code": "admin", "name": "Administrator", "description": "Full access to all modules"},
+        {"code": "itam_manager", "name": "ITAM Manager", "description": "Access to IT Asset Management module"},
+    ]
+    
+    created_roles = []
+    for role_data in default_roles:
+        existing = db.query(Role).filter(Role.code == role_data["code"]).first()
+        if not existing:
+            role = Role(**role_data)
+            db.add(role)
+            db.commit()
+            db.refresh(role)
+            created_roles.append(role)
+        else:
+            created_roles.append(existing)
+    
+    return created_roles
+
+
+# ============== User Management ==============
+
 @router.post("/create-user", response_model=UserResponse)
 def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
     """
-    Create a new user (Headless endpoint).
-    Hashes the password and saves user with the specified role.
+    Create a new user with specified roles.
     """
     # Check if user already exists
     existing_user = db.query(User).filter(
@@ -35,15 +73,23 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
             detail="Username or email already registered"
         )
     
+    # Get roles
+    roles = db.query(Role).filter(Role.code.in_(user_data.role_codes)).all()
+    if not roles:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid roles specified"
+        )
+    
     # Hash password and create user
     hashed_password = hash_password(user_data.password)
     db_user = User(
         username=user_data.username,
         email=user_data.email,
         hashed_password=hashed_password,
-        role=user_data.role,
         is_active=True
     )
+    db_user.roles = roles
     
     db.add(db_user)
     db.commit()
@@ -52,14 +98,53 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
     return db_user
 
 
+@router.get("/users", response_model=List[UserResponse])
+def get_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    """Get all users. Admin only."""
+    users = db.query(User).order_by(User.username).all()
+    return users
+
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: int,
+    user_data: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    """Update a user. Admin only."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user_data.email is not None:
+        user.email = user_data.email
+    if user_data.is_active is not None:
+        user.is_active = user_data.is_active
+    if user_data.role_codes is not None:
+        roles = db.query(Role).filter(Role.code.in_(user_data.role_codes)).all()
+        user.roles = roles
+    
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+# ============== Authentication ==============
+
 @router.post("/login", response_model=TokenResponse)
 def login(
     credentials: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
     """
-    Login endpoint. Accepts OAuth2 form data (username and password).
-    Returns access_token and refresh_token with user claims.
+    Login endpoint. Returns access_token and refresh_token.
     """
     # Find user by username
     user = db.query(User).filter(User.username == credentials.username).first()
@@ -77,8 +162,8 @@ def login(
             detail="User account is inactive"
         )
     
-    # Create tokens with user claims
-    token_data = {"sub": user.username, "role": user.role.value}
+    # Create tokens with user claims (roles as list)
+    token_data = {"sub": user.username, "roles": user.role_codes}
     access_token = create_access_token(token_data)
     refresh_token = create_refresh_token(token_data)
     
@@ -96,7 +181,6 @@ def refresh_access_token(
 ):
     """
     Refresh access token using refresh token.
-    Returns a new access_token.
     """
     token_data = decode_token(request.refresh_token)
     
@@ -115,8 +199,8 @@ def refresh_access_token(
             detail="User not found or inactive"
         )
     
-    # Create new access token
-    new_token_data = {"sub": user.username, "role": user.role.value}
+    # Create new tokens with current roles (in case roles changed)
+    new_token_data = {"sub": user.username, "roles": user.role_codes}
     access_token = create_access_token(new_token_data)
     refresh_token = create_refresh_token(new_token_data)
     
@@ -125,3 +209,11 @@ def refresh_access_token(
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
+
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_info(
+    current_user: User = Depends(get_current_user)
+):
+    """Get current user info."""
+    return current_user

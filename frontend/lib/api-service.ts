@@ -14,11 +14,33 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface Role {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+}
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  is_active: boolean;
+  roles: Role[];
+  created_at: string;
+}
+
 export interface UserCreateRequest {
   username: string;
   email: string;
   password: string;
-  role: 'admin' | 'manager' | 'user';
+  role_codes: string[];
+}
+
+export interface UserUpdateRequest {
+  email?: string;
+  is_active?: boolean;
+  role_codes?: string[];
 }
 
 // ============== Asset Types ==============
@@ -104,6 +126,17 @@ export interface AssetFilters {
   search?: string;
 }
 
+export interface AssignmentHistory {
+  id: number;
+  asset_id: number;
+  employee_id: number | null;
+  employee_name: string;
+  employee_email: string | null;
+  employee_department: string | null;
+  assigned_at: string;
+  unassigned_at: string | null;
+}
+
 // ============== Auth Functions ==============
 
 export async function loginUser(credentials: LoginRequest): Promise<TokenResponse> {
@@ -144,6 +177,31 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
     setRefreshToken(response.data.refresh_token);
   }
 
+  return response.data;
+}
+
+export async function getCurrentUser(): Promise<User> {
+  const response = await apiClient.get<User>('/api/v1/auth/me');
+  return response.data;
+}
+
+export async function getRoles(): Promise<Role[]> {
+  const response = await apiClient.get<Role[]>('/api/v1/auth/roles');
+  return response.data;
+}
+
+export async function getUsers(): Promise<User[]> {
+  const response = await apiClient.get<User[]>('/api/v1/auth/users');
+  return response.data;
+}
+
+export async function updateUser(userId: number, data: UserUpdateRequest): Promise<User> {
+  const response = await apiClient.put<User>(`/api/v1/auth/users/${userId}`, data);
+  return response.data;
+}
+
+export async function seedRoles(): Promise<Role[]> {
+  const response = await apiClient.post<Role[]>('/api/v1/auth/seed-roles');
   return response.data;
 }
 
@@ -273,6 +331,11 @@ export async function assignAsset(assetId: number, employeeId: number | null): P
   const response = await apiClient.post<Asset>(`/api/v1/assets/${assetId}/assign`, {
     employee_id: employeeId,
   });
+  return response.data;
+}
+
+export async function getAssignmentHistory(assetId: number): Promise<AssignmentHistory[]> {
+  const response = await apiClient.get<AssignmentHistory[]>(`/api/v1/assets/${assetId}/history`);
   return response.data;
 }
 

@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from jose import JWTError, jwt
 import bcrypt
 from app.config import settings
@@ -54,12 +54,12 @@ def decode_token(token: str) -> Optional[TokenData]:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         username: str = payload.get("sub")
-        role: str = payload.get("role")
+        roles: List[str] = payload.get("roles", [])
         token_type: str = payload.get("type", "access")
         
         if username is None:
             return None
         
-        return TokenData(sub=username, role=role, type=token_type)
+        return TokenData(sub=username, roles=roles, type=token_type)
     except JWTError:
         return None

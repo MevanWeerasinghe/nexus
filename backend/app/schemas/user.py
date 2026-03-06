@@ -1,7 +1,17 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
-from app.models.user import UserRole
+from typing import Optional, List
 from datetime import datetime
+
+
+class RoleResponse(BaseModel):
+    """Schema for role response."""
+    id: int
+    code: str
+    name: str
+    description: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
 
 class UserCreate(BaseModel):
@@ -9,7 +19,14 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=255)
     email: EmailStr
     password: str = Field(..., min_length=8)
-    role: UserRole = UserRole.user
+    role_codes: List[str] = Field(default=["itam_manager"], description="List of role codes to assign")
+
+
+class UserUpdate(BaseModel):
+    """Schema for updating a user."""
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
+    role_codes: Optional[List[str]] = None
 
 
 class UserResponse(BaseModel):
@@ -17,8 +34,8 @@ class UserResponse(BaseModel):
     id: int
     username: str
     email: str
-    role: UserRole
     is_active: bool
+    roles: List[RoleResponse]
     created_at: datetime
     
     class Config:
@@ -46,6 +63,6 @@ class RefreshTokenRequest(BaseModel):
 class TokenData(BaseModel):
     """Schema for JWT token data."""
     sub: str  # username
-    role: str
+    roles: List[str]  # list of role codes
     exp: Optional[int] = None
     type: str = "access"  # "access" or "refresh"

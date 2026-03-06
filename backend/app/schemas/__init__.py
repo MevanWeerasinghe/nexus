@@ -1,11 +1,13 @@
 # User schemas
 from app.schemas.user import (
     UserCreate,
+    UserUpdate,
     UserResponse,
     LoginRequest,
     TokenResponse,
     RefreshTokenRequest,
     TokenData,
+    RoleResponse,
 )
 
 # Asset schemas

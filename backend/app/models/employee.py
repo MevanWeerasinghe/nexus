@@ -24,5 +24,8 @@ class Employee(Base):
     # Relationship to assets
     assets = relationship("Asset", back_populates="employee")
     
+    # Relationship to assignment history
+    assignment_history = relationship("AssignmentHistory", back_populates="employee")
+    
     def __repr__(self):
         return f"<Employee(id={self.id}, name='{self.name}', email='{self.email}')>"

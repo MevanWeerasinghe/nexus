@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package, Menu, Users } from "lucide-react";
-import { useState } from "react";
+import { LogOut, LayoutDashboard, Package, Menu, Users, ShieldAlert } from "lucide-react";
+import { useState, useEffect } from "react";
+import { isAuthenticated, canAccessITAM, clearAuthTokens } from "@/lib/auth";
 
 export default function ITAMLayout({
   children,
@@ -13,12 +14,52 @@ export default function ITAMLayout({
 }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/login");
+      return;
+    }
+    // Check if user has ITAM access
+    setHasAccess(canAccessITAM());
+  }, [router]);
 
   const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    clearAuthTokens();
     router.push("/login");
   };
+
+  // Show loading while checking access
+  if (hasAccess === null) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  // Show access denied if user doesn't have ITAM role
+  if (!hasAccess) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <ShieldAlert className="h-16 w-16 mx-auto text-destructive" />
+          <h1 className="text-2xl font-bold">Access Denied</h1>
+          <p className="text-muted-foreground">
+            You don't have permission to access the IT Asset Management module.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Please contact your administrator to request access.
+          </p>
+          <Button onClick={handleLogout} variant="outline">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background">

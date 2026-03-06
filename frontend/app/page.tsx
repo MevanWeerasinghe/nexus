@@ -29,7 +29,7 @@ export default function LandingPage() {
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">IT Asset Management System</h1>
+          <h1 className="text-2xl font-bold">NEXUS</h1>
           <Button
             variant="outline"
             onClick={handleLogout}

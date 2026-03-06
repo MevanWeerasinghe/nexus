@@ -2,17 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 from app.database import get_db
-from app.models.asset import Asset, Category
+from app.models.asset import Asset, Category, AssignmentHistory
 from app.models.employee import Employee
 from app.models.user import User
 from app.schemas.asset import (
     AssetCreate, AssetUpdate, AssetAssign, AssetResponse, AssetListResponse,
     CategoryCreate, CategoryResponse,
-    DashboardMetrics, WarrantyAlert
+    DashboardMetrics, WarrantyAlert, AssignmentHistoryResponse
 )
 from app.dependencies import get_current_user
 
@@ -246,6 +246,15 @@ def update_asset(
     # If status is changing to Available, Retired, or Disposed, auto-unassign employee
     new_status = update_data.get('status')
     if new_status in ['Available', 'Retired', 'Disposed'] and asset.employee_id is not None:
+        # Close out the current assignment history record
+        current_history = db.query(AssignmentHistory).filter(
+            AssignmentHistory.asset_id == asset_id,
+            AssignmentHistory.employee_id == asset.employee_id,
+            AssignmentHistory.unassigned_at == None
+        ).first()
+        if current_history:
+            current_history.unassigned_at = datetime.utcnow()
+        
         update_data['employee_id'] = None
         update_data['assigned_to'] = None
     
@@ -310,6 +319,16 @@ def assign_asset(
             detail="Asset not found"
         )
     
+    # If asset is currently assigned, close out that assignment history record
+    if asset.employee_id is not None:
+        current_history = db.query(AssignmentHistory).filter(
+            AssignmentHistory.asset_id == asset_id,
+            AssignmentHistory.employee_id == asset.employee_id,
+            AssignmentHistory.unassigned_at == None
+        ).first()
+        if current_history:
+            current_history.unassigned_at = datetime.utcnow()
+    
     if assignment.employee_id is not None:
         # Assigning to an employee
         employee = db.query(Employee).filter(Employee.id == assignment.employee_id).first()
@@ -318,6 +337,17 @@ def assign_asset(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Employee not found"
             )
+        
+        # Create new assignment history record
+        history_record = AssignmentHistory(
+            asset_id=asset_id,
+            employee_id=employee.id,
+            employee_name=employee.name,
+            employee_email=employee.email,
+            employee_department=employee.department,
+            assigned_at=datetime.utcnow()
+        )
+        db.add(history_record)
         
         asset.employee_id = assignment.employee_id
         asset.assigned_to = employee.name  # Store employee name for reference
@@ -332,6 +362,32 @@ def assign_asset(
     db.refresh(asset)
     
     return asset
+
+
+@router.get("/{asset_id}/history", response_model=List[AssignmentHistoryResponse])
+def get_assignment_history(
+    asset_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the assignment history for an asset.
+    
+    Returns all past and current assignments in descending order (most recent first).
+    """
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset not found"
+        )
+    
+    history = db.query(AssignmentHistory).filter(
+        AssignmentHistory.asset_id == asset_id
+    ).order_by(AssignmentHistory.assigned_at.desc()).all()
+    
+    return history
 
 
 # ============== Seed Categories (Development Helper) ==============

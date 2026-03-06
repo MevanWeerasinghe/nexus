@@ -151,6 +151,23 @@ class AssetListResponse(BaseModel):
     total_pages: int
 
 
+# ============== Assignment History Schemas ==============
+
+class AssignmentHistoryResponse(BaseModel):
+    """Schema for assignment history response."""
+    id: int
+    asset_id: int
+    employee_id: Optional[int] = None
+    employee_name: str
+    employee_email: Optional[str] = None
+    employee_department: Optional[str] = None
+    assigned_at: datetime
+    unassigned_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
 # ============== Dashboard Schemas ==============
 
 class DashboardMetrics(BaseModel):

@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Pencil, Eye, Calendar, MapPin, DollarSign, Shield, Tag, Hash, Building, Package } from "lucide-react";
+import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Pencil, Eye, Calendar, MapPin, DollarSign, Shield, Tag, Hash, Building, Package, History, Clock } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import AddAssetForm from "@/components/AddAssetForm";
@@ -42,10 +42,12 @@ import {
   deleteAsset,
   updateAsset,
   assignAsset,
+  getAssignmentHistory,
   Asset, 
   Category,
   Employee, 
-  AssetCreate 
+  AssetCreate,
+  AssignmentHistory
 } from "@/lib/api-service";
 import { isAuthenticated } from "@/lib/auth";
 
@@ -101,6 +103,9 @@ export default function AssetsPage() {
   // Profile dialog state
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [profileAsset, setProfileAsset] = useState<Asset | null>(null);
+  const [assignmentHistory, setAssignmentHistory] = useState<AssignmentHistory[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   const fetchAssets = useCallback(async () => {
     setLoading(true);
@@ -242,9 +247,23 @@ export default function AssetsPage() {
     setEditDialogOpen(true);
   };
 
-  const openProfileDialog = (asset: Asset) => {
+  const openProfileDialog = async (asset: Asset) => {
     setProfileAsset(asset);
     setProfileDialogOpen(true);
+  };
+
+  const openHistoryDialog = async () => {
+    if (!profileAsset) return;
+    setHistoryDialogOpen(true);
+    setLoadingHistory(true);
+    try {
+      const history = await getAssignmentHistory(profileAsset.id);
+      setAssignmentHistory(history);
+    } catch (err) {
+      console.error("Failed to fetch assignment history:", err);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleProfileEdit = () => {
@@ -722,9 +741,86 @@ export default function AssetsPage() {
                     <p className="text-sm whitespace-pre-wrap">{profileAsset.notes}</p>
                   </div>
                 )}
+
+                {/* View Assignment History Button */}
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2" 
+                  onClick={openHistoryDialog}
+                >
+                  <History className="h-4 w-4" />
+                  View Assignment History
+                </Button>
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Assignment History Dialog */}
+      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
+        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-5">
+            <div className="flex items-center gap-3">
+              <History className="h-5 w-5" />
+              <div>
+                <h2 className="text-lg font-bold">Assignment History</h2>
+                {profileAsset && (
+                  <p className="text-slate-300 text-sm">{profileAsset.asset_tag}</p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="p-4 max-h-[60vh] overflow-y-auto">
+            {loadingHistory ? (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-8">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Loading history...
+              </div>
+            ) : assignmentHistory.length > 0 ? (
+              <div className="space-y-3">
+                {assignmentHistory.map((record, index) => (
+                  <div 
+                    key={record.id} 
+                    className={`flex items-start gap-3 ${index !== assignmentHistory.length - 1 ? 'pb-3 border-b' : ''}`}
+                  >
+                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm flex-shrink-0">
+                      {record.employee_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{record.employee_name}</p>
+                        {!record.unassigned_at && (
+                          <Badge className="text-xs bg-green-600 hover:bg-green-600">Current</Badge>
+                        )}
+                      </div>
+                      {record.employee_email && (
+                        <p className="text-xs text-muted-foreground">{record.employee_email}</p>
+                      )}
+                      {record.employee_department && (
+                        <p className="text-xs text-muted-foreground">{record.employee_department}</p>
+                      )}
+                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>
+                          {formatDate(record.assigned_at)}
+                          {record.unassigned_at && (
+                            <> → {formatDate(record.unassigned_at)}</>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <History className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">No assignment history</p>
+                <p className="text-xs text-muted-foreground mt-1">This asset has never been assigned</p>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

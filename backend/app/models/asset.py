@@ -4,6 +4,30 @@ from sqlalchemy.sql import func
 from app.database import Base
 
 
+class AssignmentHistory(Base):
+    """Assignment history model to track all past owners of an asset."""
+    
+    __tablename__ = "assignment_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True)
+    employee_name = Column(String(255), nullable=False)  # Store name in case employee is deleted
+    employee_email = Column(String(255), nullable=True)
+    employee_department = Column(String(255), nullable=True)
+    
+    # Assignment timestamps
+    assigned_at = Column(DateTime, nullable=False, server_default=func.now())
+    unassigned_at = Column(DateTime, nullable=True)
+    
+    # Relationships
+    asset = relationship("Asset", back_populates="assignment_history")
+    employee = relationship("Employee", back_populates="assignment_history")
+    
+    def __repr__(self):
+        return f"<AssignmentHistory(id={self.id}, asset_id={self.asset_id}, employee_name='{self.employee_name}')>"
+
+
 class Category(Base):
     """Category model for asset classification."""
     
@@ -65,6 +89,9 @@ class Asset(Base):
     
     # Relationship to employee
     employee = relationship("Employee", back_populates="assets")
+    
+    # Relationship to assignment history
+    assignment_history = relationship("AssignmentHistory", back_populates="asset", order_by="desc(AssignmentHistory.assigned_at)")
     
     def __repr__(self):
         return f"<Asset(id={self.id}, asset_tag='{self.asset_tag}', status='{self.status}')>"

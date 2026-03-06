@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.database import get_db
 from app.auth import decode_token
-from app.models.user import User, UserRole
+from app.models.user import User
 from sqlalchemy.orm import Session
 
 security = HTTPBearer()
@@ -45,13 +45,21 @@ async def get_current_user(
     return user
 
 
-def require_role(*allowed_roles: UserRole):
+def require_role(*allowed_role_codes: str):
     """
     Dependency factory to ensure user has one of the required roles.
-    Usage: @router.get("/admin", dependencies=[Depends(require_role(UserRole.admin))])
+    Admin role always has access.
+    
+    Usage: @router.get("/itam", dependencies=[Depends(require_role("itam_manager"))])
     """
     async def role_checker(current_user: User = Depends(get_current_user)):
-        if current_user.role not in allowed_roles:
+        # Admin has access to everything
+        if current_user.is_admin:
+            return current_user
+        
+        # Check if user has any of the allowed roles
+        user_role_codes = current_user.role_codes
+        if not any(role in user_role_codes for role in allowed_role_codes):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions"
