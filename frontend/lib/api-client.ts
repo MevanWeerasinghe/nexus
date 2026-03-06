@@ -47,12 +47,8 @@ apiClient.interceptors.response.use(
     
     // If error is 401 and we haven't already retried
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // Don't try to refresh if this was the login or refresh endpoint
+      // Don't try to refresh if this was the login or refresh endpoint - just reject the error
       if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/refresh')) {
-        clearAuthTokens();
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
         return Promise.reject(error);
       }
       
