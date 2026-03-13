@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Pencil, Eye, Calendar, MapPin, DollarSign, Shield, Tag, Hash, Building, Building2, Package, History, Clock, Cpu, Wrench, Info } from "lucide-react";
+import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Pencil, Eye, Calendar, MapPin, DollarSign, Shield, Tag, Hash, Building, Building2, Package, History, Clock, Cpu, Wrench, Info, ChevronsUpDown, Check } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import AddAssetForm from "@/components/AddAssetForm";
@@ -89,7 +89,10 @@ export default function AssetsPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
+  const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const employeePickerRef = useRef<HTMLDivElement | null>(null);
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -203,6 +206,8 @@ export default function AssetsPage() {
   const openAssignDialog = (asset: Asset) => {
     setSelectedAsset(asset);
     setSelectedEmployeeId(asset.employee_id?.toString() || "unassigned");
+    setEmployeeSearchTerm("");
+    setEmployeePickerOpen(false);
     setAssignDialogOpen(true);
   };
 
@@ -216,6 +221,8 @@ export default function AssetsPage() {
       setAssignDialogOpen(false);
       setSelectedAsset(null);
       setSelectedEmployeeId("");
+      setEmployeeSearchTerm("");
+      setEmployeePickerOpen(false);
       fetchAssets();
     } catch (err: any) {
       console.error("Failed to assign asset:", err);
@@ -440,6 +447,30 @@ export default function AssetsPage() {
       day: "numeric",
     });
   };
+
+  const filteredEmployees = employees.filter((emp) => {
+    const query = employeeSearchTerm.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      emp.name.toLowerCase().includes(query) ||
+      emp.email.toLowerCase().includes(query)
+    );
+  });
+
+  const selectedEmployee = employees.find((emp) => emp.id.toString() === selectedEmployeeId);
+
+  useEffect(() => {
+    if (!employeePickerOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!employeePickerRef.current?.contains(event.target as Node)) {
+        setEmployeePickerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [employeePickerOpen]);
 
   return (
     <div className="p-6 space-y-6">
@@ -1216,7 +1247,16 @@ export default function AssetsPage() {
       </Dialog>
 
       {/* Assign Asset Dialog */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+      <Dialog
+        open={assignDialogOpen}
+        onOpenChange={(open) => {
+          setAssignDialogOpen(open);
+          if (!open) {
+            setEmployeeSearchTerm("");
+            setEmployeePickerOpen(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Asset</DialogTitle>
@@ -1227,19 +1267,72 @@ export default function AssetsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select an employee..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {employees.map((emp) => (
-                  <SelectItem key={emp.id} value={emp.id.toString()}>
-                    {emp.name} ({emp.email})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative" ref={employeePickerRef}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between font-normal"
+                onClick={() => setEmployeePickerOpen((prev) => !prev)}
+              >
+                <span className="truncate text-left">
+                  {selectedEmployeeId === "unassigned"
+                    ? "Unassigned"
+                    : selectedEmployee
+                      ? `${selectedEmployee.name} (${selectedEmployee.email})`
+                      : "Select an employee..."}
+                </span>
+                <ChevronsUpDown className="h-4 w-4 opacity-60" />
+              </Button>
+
+              {employeePickerOpen && (
+                <div className="absolute z-50 mt-2 w-full rounded-md border bg-background p-2 shadow-md">
+                  <Input
+                    placeholder="Search employee by name or email..."
+                    value={employeeSearchTerm}
+                    onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                    className="h-9"
+                    autoFocus
+                  />
+                  <div className="mt-2 max-h-52 overflow-y-auto space-y-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="w-full justify-between font-normal"
+                      onClick={() => {
+                        setSelectedEmployeeId("unassigned");
+                        setEmployeePickerOpen(false);
+                      }}
+                    >
+                      <span className="truncate">Unassigned</span>
+                      {selectedEmployeeId === "unassigned" && <Check className="h-4 w-4" />}
+                    </Button>
+
+                    {filteredEmployees.map((emp) => {
+                      const value = emp.id.toString();
+                      return (
+                        <Button
+                          key={emp.id}
+                          type="button"
+                          variant="ghost"
+                          className="w-full justify-between font-normal"
+                          onClick={() => {
+                            setSelectedEmployeeId(value);
+                            setEmployeePickerOpen(false);
+                          }}
+                        >
+                          <span className="truncate text-left">{emp.name} ({emp.email})</span>
+                          {selectedEmployeeId === value && <Check className="h-4 w-4" />}
+                        </Button>
+                      );
+                    })}
+
+                    {employees.length > 0 && filteredEmployees.length === 0 && (
+                      <p className="px-2 py-1 text-sm text-muted-foreground">No employees match your search.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             {employees.length === 0 && (
               <p className="text-sm text-muted-foreground mt-2">
                 No employees found. Go to Employees page to add some.
@@ -1247,7 +1340,14 @@ export default function AssetsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAssignDialogOpen(false);
+                setEmployeeSearchTerm("");
+                setEmployeePickerOpen(false);
+              }}
+            >
               Cancel
             </Button>
             <Button onClick={handleAssign} disabled={assigning}>

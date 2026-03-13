@@ -25,22 +25,19 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Category, AssetCreate, Supplier, getSuppliers } from "@/lib/api-service";
-import { Loader2, Shield, Building2, Package, FileText } from "lucide-react";
+import { Loader2, Shield, Package, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const assetFormSchema = z.object({
   asset_tag: z.string().min(1, "Asset Tag is required"),
   serial_number: z.string().min(1, "Serial Number is required"),
   category_id: z.string().min(1, "Category is required"),
-  supplier_id: z.string().optional(),
+  supplier_id: z.string().min(1, "Supplier is required"),
   manufacturer: z.string().min(1, "Manufacturer is required"),
   model_name: z.string().min(1, "Model is required"),
   purchase_date: z.string().optional(),
   purchase_price: z.string().optional(),
-  status: z.string().optional(),
-  location: z.string().optional(),
   notes: z.string().optional(),
-  // Warranty fields
   include_warranty: z.boolean().default(false),
   warranty_provider: z.string().optional(),
   warranty_duration: z.string().optional(),
@@ -86,8 +83,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
       model_name: "",
       purchase_date: "",
       purchase_price: "",
-      status: "Available",
-      location: "",
       notes: "",
       include_warranty: false,
       warranty_provider: "",
@@ -98,6 +93,20 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
   });
 
   const includeWarranty = form.watch("include_warranty");
+  const selectedSupplierId = form.watch("supplier_id");
+  const selectedSupplier = suppliers.find((supplier) => supplier.id.toString() === selectedSupplierId);
+  const canConfigureWarranty = Boolean(selectedSupplierId);
+
+  useEffect(() => {
+    form.setValue("warranty_provider", selectedSupplier?.name || "");
+
+    if (!selectedSupplierId) {
+      form.setValue("include_warranty", false);
+      form.setValue("warranty_start_date", "");
+      form.setValue("warranty_terms", "");
+      form.setValue("warranty_duration", "12");
+    }
+  }, [selectedSupplierId, selectedSupplier, form]);
 
   const handleSubmit = async (values: AssetFormValues) => {
     setIsSubmitting(true);
@@ -108,20 +117,22 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
         asset_tag: values.asset_tag,
         serial_number: values.serial_number,
         category_id: parseInt(values.category_id),
-        supplier_id: values.supplier_id ? parseInt(values.supplier_id) : undefined,
+        supplier_id: parseInt(values.supplier_id),
         manufacturer: values.manufacturer,
         model_name: values.model_name,
         purchase_date: values.purchase_date || undefined,
         purchase_price: values.purchase_price ? parseFloat(values.purchase_price) : undefined,
-        status: values.status || "Available",
-        location: values.location || undefined,
+        status: "Available",
         notes: values.notes || undefined,
       };
 
-      // Add warranty data if toggle is on
-      if (values.include_warranty && values.warranty_provider && values.warranty_start_date) {
+      const warrantyProviderName = suppliers.find(
+        (supplier) => supplier.id.toString() === values.supplier_id
+      )?.name;
+
+      if (values.include_warranty && warrantyProviderName && values.warranty_start_date) {
         data.warranty = {
-          provider_name: values.warranty_provider,
+          provider_name: warrantyProviderName,
           duration_months: parseInt(values.warranty_duration || "12"),
           start_date: values.warranty_start_date,
           terms_conditions: values.warranty_terms || undefined,
@@ -146,20 +157,19 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
           </div>
         )}
 
-        {/* Two-panel layout */}
         <div className="flex">
-          {/* Left Panel - Asset Information */}
-          <div className={cn(
-            "transition-all duration-300 ease-in-out px-6 pb-4",
-            includeWarranty ? "w-1/2 border-r" : "w-full"
-          )}>
+          <div
+            className={cn(
+              "transition-all duration-300 ease-in-out px-6 pb-4",
+              includeWarranty ? "w-1/2 border-r" : "w-full"
+            )}
+          >
             <div className="flex items-center gap-2 mb-4 text-sm font-medium text-muted-foreground">
               <Package className="h-4 w-4" />
               Asset Information
             </div>
 
             <div className="space-y-3">
-              {/* Row 1: Asset Tag & Serial */}
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -190,7 +200,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                 />
               </div>
 
-              {/* Row 2: Category & Supplier */}
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -198,9 +207,9 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs">Category *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-9">
+                          <SelectTrigger className="h-9 w-full">
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                         </FormControl>
@@ -222,21 +231,14 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                   name="supplier_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs flex items-center gap-1">
-                        <Building2 className="h-3 w-3" />
-                        Supplier
-                      </FormLabel>
-                      <Select 
-                        onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)} 
-                        defaultValue={field.value || "__none__"}
-                      >
+                      <FormLabel className="text-xs">Supplier *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-9">
+                          <SelectTrigger className="h-9 w-full">
                             <SelectValue placeholder={loadingSuppliers ? "Loading..." : "Select supplier"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="__none__">No Supplier</SelectItem>
                           {suppliers.map((supplier) => (
                             <SelectItem key={supplier.id} value={supplier.id.toString()}>
                               {supplier.name}
@@ -250,7 +252,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                 />
               </div>
 
-              {/* Row 3: Manufacturer & Model */}
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -281,48 +282,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                 />
               </div>
 
-              {/* Row 4: Status & Location */}
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Available">Available</SelectItem>
-                          <SelectItem value="Deployed">Deployed</SelectItem>
-                          <SelectItem value="In Maintenance">In Maintenance</SelectItem>
-                          <SelectItem value="Retired">Retired</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Location</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Building A, Room 101" className="h-9" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Row 5: Purchase Date & Price */}
               <div className="grid grid-cols-2 gap-3">
                 <FormField
                   control={form.control}
@@ -353,7 +312,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                 />
               </div>
 
-              {/* Row 6: Notes */}
               <FormField
                 control={form.control}
                 name="notes"
@@ -361,18 +319,13 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                   <FormItem>
                     <FormLabel className="text-xs">Notes</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Additional notes..."
-                        className="resize-none h-16"
-                        {...field} 
-                      />
+                      <Textarea placeholder="Additional notes..." className="resize-none h-16" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Warranty Toggle */}
               <FormField
                 control={form.control}
                 name="include_warranty"
@@ -384,13 +337,19 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                         Add Warranty Tracking
                       </FormLabel>
                       <FormDescription className="text-xs">
-                        Track detailed warranty information
+                        {canConfigureWarranty
+                          ? "Track detailed warranty information"
+                          : "Select a supplier first to enable warranty tracking"}
                       </FormDescription>
                     </div>
                     <FormControl>
                       <Switch
                         checked={field.value}
-                        onCheckedChange={field.onChange}
+                        onCheckedChange={(checked) => {
+                          if (!canConfigureWarranty) return;
+                          field.onChange(checked);
+                        }}
+                        disabled={!canConfigureWarranty}
                       />
                     </FormControl>
                   </FormItem>
@@ -399,11 +358,12 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
             </div>
           </div>
 
-          {/* Right Panel - Warranty Information (slides in) */}
-          <div className={cn(
-            "transition-all duration-300 ease-in-out overflow-hidden",
-            includeWarranty ? "w-1/2 opacity-100" : "w-0 opacity-0"
-          )}>
+          <div
+            className={cn(
+              "transition-all duration-300 ease-in-out overflow-hidden",
+              includeWarranty ? "w-1/2 opacity-100" : "w-0 opacity-0"
+            )}
+          >
             <div className="px-6 pb-4 min-w-[350px]">
               <div className="flex items-center gap-2 mb-4 text-sm font-medium text-primary">
                 <Shield className="h-4 w-4" />
@@ -411,7 +371,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
               </div>
 
               <div className="space-y-3 bg-primary/5 rounded-lg p-4 border border-primary/20">
-                {/* Provider & Duration */}
                 <div className="grid grid-cols-2 gap-3">
                   <FormField
                     control={form.control}
@@ -420,7 +379,13 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                       <FormItem>
                         <FormLabel className="text-xs">Provider *</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., Dell Inc." className="h-9 bg-background" {...field} />
+                          <Input
+                            placeholder="Auto-filled from supplier"
+                            className="h-9 bg-background"
+                            value={field.value || selectedSupplier?.name || ""}
+                            readOnly
+                            disabled
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -434,7 +399,13 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                       <FormItem>
                         <FormLabel className="text-xs">Duration (Months) *</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="12" className="h-9 bg-background" {...field} />
+                          <Input
+                            type="number"
+                            placeholder="12"
+                            className="h-9 bg-background"
+                            disabled={!canConfigureWarranty}
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -442,7 +413,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                   />
                 </div>
 
-                {/* Start Date */}
                 <FormField
                   control={form.control}
                   name="warranty_start_date"
@@ -450,17 +420,14 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                     <FormItem>
                       <FormLabel className="text-xs">Start Date *</FormLabel>
                       <FormControl>
-                        <Input type="date" className="h-9 bg-background" {...field} />
+                        <Input type="date" className="h-9 bg-background" disabled={!canConfigureWarranty} {...field} />
                       </FormControl>
-                      <FormDescription className="text-xs">
-                        End date calculated automatically
-                      </FormDescription>
+                      <FormDescription className="text-xs">End date calculated automatically</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {/* Terms */}
                 <FormField
                   control={form.control}
                   name="warranty_terms"
@@ -474,6 +441,7 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                         <Textarea
                           placeholder="Coverage details, exclusions, claim process..."
                           className="resize-none h-24 bg-background"
+                          disabled={!canConfigureWarranty}
                           {...field}
                         />
                       </FormControl>
@@ -482,9 +450,8 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                   )}
                 />
 
-                {/* Info box */}
                 <div className="text-xs text-muted-foreground bg-background/50 rounded p-2 border">
-                  <p className="font-medium text-foreground mb-1">💡 Tip</p>
+                  <p className="font-medium text-foreground mb-1">Tip</p>
                   <p>Warranty information will be tracked separately and shown in the asset profile with active/expired status.</p>
                 </div>
               </div>
@@ -492,7 +459,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-2 px-6 py-4 border-t bg-muted/30">
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
