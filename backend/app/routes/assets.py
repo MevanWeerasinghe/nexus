@@ -9,11 +9,15 @@ from app.database import get_db
 from app.models.asset import Asset, Category, AssignmentHistory
 from app.models.employee import Employee
 from app.models.user import User
+from app.models.supplier import Supplier
+from app.models.warranty import Warranty
+from app.models.component import Component, AssetComponentHistory, ComponentStatus
 from app.schemas.asset import (
     AssetCreate, AssetUpdate, AssetAssign, AssetResponse, AssetListResponse,
     CategoryCreate, CategoryResponse,
     DashboardMetrics, WarrantyAlert, AssignmentHistoryResponse
 )
+from app.schemas.component import InstallComponentRequest, AssetComponentHistoryResponse, RemoveComponentRequest
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
@@ -159,8 +163,9 @@ def create_asset(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Create a new asset.
+    Create a new asset with optional warranty.
     
+    If warranty object is provided, creates a separate warranty record linked to the asset.
     The warranty_expiry_date is automatically calculated by adding warranty_months to purchase_date.
     """
     # Check if asset tag already exists
@@ -179,18 +184,48 @@ def create_asset(
             detail="Category not found"
         )
     
-    # Calculate warranty expiry date
+    # Verify supplier exists if provided
+    if asset_data.supplier_id:
+        supplier = db.query(Supplier).filter(Supplier.id == asset_data.supplier_id).first()
+        if not supplier:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Supplier not found"
+            )
+    
+    # Calculate legacy warranty expiry date
     warranty_expiry_date = None
     if asset_data.purchase_date and asset_data.warranty_months:
         warranty_expiry_date = asset_data.purchase_date + relativedelta(months=asset_data.warranty_months)
     
+    # Extract warranty data before creating asset
+    warranty_data = asset_data.warranty
+    asset_dict = asset_data.model_dump(exclude={'warranty'})
+    
     # Create asset
     db_asset = Asset(
-        **asset_data.model_dump(),
+        **asset_dict,
         warranty_expiry_date=warranty_expiry_date
     )
     
     db.add(db_asset)
+    db.flush()  # Get the asset ID without committing
+    
+    # Create warranty record if warranty data provided
+    if warranty_data:
+        # Calculate warranty end date
+        warranty_end_date = warranty_data.start_date + relativedelta(months=warranty_data.duration_months)
+        
+        db_warranty = Warranty(
+            asset_id=db_asset.id,
+            provider_name=warranty_data.provider_name,
+            duration_months=warranty_data.duration_months,
+            start_date=warranty_data.start_date,
+            end_date=warranty_end_date,
+            terms_conditions=warranty_data.terms_conditions
+        )
+        db.add(db_warranty)
+    
     db.commit()
     db.refresh(db_asset)
     
@@ -388,6 +423,144 @@ def get_assignment_history(
     ).order_by(AssignmentHistory.assigned_at.desc()).all()
     
     return history
+
+
+# ============== Component Installation ==============
+
+@router.get("/{asset_id}/components", response_model=List[AssetComponentHistoryResponse])
+def get_asset_components(
+    asset_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the component installation history for an asset.
+    
+    Returns all components that have been installed in this asset (past and current).
+    """
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset not found"
+        )
+    
+    history = db.query(AssetComponentHistory).filter(
+        AssetComponentHistory.asset_id == asset_id
+    ).order_by(AssetComponentHistory.installed_date.desc()).all()
+    
+    return history
+
+
+@router.post("/{asset_id}/install-component", response_model=AssetComponentHistoryResponse)
+def install_component(
+    asset_id: int,
+    install_data: InstallComponentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Install a component into an asset.
+    
+    - Updates the component's status to "Installed"
+    - Creates a record in the asset component history
+    """
+    # Verify asset exists
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset not found"
+        )
+    
+    # Verify component exists
+    component = db.query(Component).filter(Component.id == install_data.component_id).first()
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component not found"
+        )
+    
+    # Check component is available
+    if component.status != ComponentStatus.AVAILABLE.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Component is not available for installation. Current status: {component.status}"
+        )
+    
+    # Update component status to Installed
+    component.status = ComponentStatus.INSTALLED.value
+    
+    # Create history record
+    history_record = AssetComponentHistory(
+        asset_id=asset_id,
+        component_id=install_data.component_id,
+        installed_date=datetime.utcnow(),
+        installed_by=install_data.installed_by or current_user.username,
+        notes=install_data.notes
+    )
+    db.add(history_record)
+    
+    db.commit()
+    db.refresh(history_record)
+    
+    return history_record
+
+
+@router.post("/{asset_id}/remove-component/{history_id}", response_model=AssetComponentHistoryResponse)
+def remove_component(
+    asset_id: int,
+    history_id: int,
+    remove_data: RemoveComponentRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Remove a component from an asset.
+    
+    - Updates the history record with removal date and reason
+    - Sets the component status back to "Available"
+    """
+    # Verify asset exists
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asset not found"
+        )
+    
+    # Get the history record
+    history_record = db.query(AssetComponentHistory).filter(
+        AssetComponentHistory.id == history_id,
+        AssetComponentHistory.asset_id == asset_id
+    ).first()
+    
+    if not history_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component installation record not found"
+        )
+    
+    if history_record.removed_date is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Component has already been removed from this asset"
+        )
+    
+    # Update history record
+    history_record.removed_date = datetime.utcnow()
+    history_record.removal_reason = remove_data.removal_reason
+    
+    # Update component status back to Available
+    component = db.query(Component).filter(Component.id == history_record.component_id).first()
+    if component:
+        component.status = ComponentStatus.AVAILABLE.value
+    
+    db.commit()
+    db.refresh(history_record)
+    
+    return history_record
 
 
 # ============== Seed Categories (Development Helper) ==============

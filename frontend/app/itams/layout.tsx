@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { LogOut, LayoutDashboard, Package, Menu, Users, ShieldAlert } from "lucide-react";
+import { LogOut, LayoutDashboard, Package, Menu, Users, ShieldAlert, Building2, Cpu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { isAuthenticated, canAccessITAM, clearAuthTokens } from "@/lib/auth";
 
@@ -110,6 +110,26 @@ export default function ITAMLayout({
             >
               <Users className="h-5 w-5" />
               {sidebarOpen && "Employees"}
+            </Button>
+          </Link>
+
+          <Link href="/itams/suppliers">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+            >
+              <Building2 className="h-5 w-5" />
+              {sidebarOpen && "Suppliers"}
+            </Button>
+          </Link>
+
+          <Link href="/itams/components">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+            >
+              <Cpu className="h-5 w-5" />
+              {sidebarOpen && "Components"}
             </Button>
           </Link>
         </nav>

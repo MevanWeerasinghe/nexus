@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -30,7 +31,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Pencil, Eye, Calendar, MapPin, DollarSign, Shield, Tag, Hash, Building, Package, History, Clock } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Pencil, Eye, Calendar, MapPin, DollarSign, Shield, Tag, Hash, Building, Building2, Package, History, Clock, Cpu, Wrench, Info } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import AddAssetForm from "@/components/AddAssetForm";
@@ -43,11 +45,17 @@ import {
   updateAsset,
   assignAsset,
   getAssignmentHistory,
+  getAssetComponents,
+  getAvailableComponents,
+  installComponent,
+  removeComponent,
   Asset, 
   Category,
   Employee, 
   AssetCreate,
-  AssignmentHistory
+  AssignmentHistory,
+  AssetComponentHistory,
+  Component
 } from "@/lib/api-service";
 import { isAuthenticated } from "@/lib/auth";
 
@@ -106,6 +114,15 @@ export default function AssetsPage() {
   const [assignmentHistory, setAssignmentHistory] = useState<AssignmentHistory[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  
+  // Component history state
+  const [componentHistory, setComponentHistory] = useState<AssetComponentHistory[]>([]);
+  const [loadingComponents, setLoadingComponents] = useState(false);
+  const [installDialogOpen, setInstallDialogOpen] = useState(false);
+  const [availableComponents, setAvailableComponents] = useState<Component[]>([]);
+  const [selectedComponentId, setSelectedComponentId] = useState<string>("");
+  const [installNotes, setInstallNotes] = useState("");
+  const [installing, setInstalling] = useState(false);
 
   const fetchAssets = useCallback(async () => {
     setLoading(true);
@@ -250,6 +267,60 @@ export default function AssetsPage() {
   const openProfileDialog = async (asset: Asset) => {
     setProfileAsset(asset);
     setProfileDialogOpen(true);
+    
+    // Fetch component history
+    setLoadingComponents(true);
+    try {
+      const history = await getAssetComponents(asset.id);
+      setComponentHistory(history);
+    } catch (err) {
+      console.error("Failed to fetch component history:", err);
+    } finally {
+      setLoadingComponents(false);
+    }
+  };
+
+  const openInstallComponentDialog = async () => {
+    setInstallDialogOpen(true);
+    try {
+      const components = await getAvailableComponents();
+      setAvailableComponents(components);
+    } catch (err) {
+      console.error("Failed to fetch available components:", err);
+    }
+  };
+
+  const handleInstallComponent = async () => {
+    if (!profileAsset || !selectedComponentId) return;
+    setInstalling(true);
+    try {
+      await installComponent(profileAsset.id, {
+        component_id: parseInt(selectedComponentId),
+        notes: installNotes || undefined
+      });
+      // Refresh component history
+      const history = await getAssetComponents(profileAsset.id);
+      setComponentHistory(history);
+      setInstallDialogOpen(false);
+      setSelectedComponentId("");
+      setInstallNotes("");
+    } catch (err) {
+      console.error("Failed to install component:", err);
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const handleRemoveComponent = async (historyId: number, reason: string) => {
+    if (!profileAsset) return;
+    try {
+      await removeComponent(profileAsset.id, historyId, reason);
+      // Refresh component history
+      const history = await getAssetComponents(profileAsset.id);
+      setComponentHistory(history);
+    } catch (err) {
+      console.error("Failed to remove component:", err);
+    }
   };
 
   const openHistoryDialog = async () => {
@@ -390,8 +461,8 @@ export default function AssetsPage() {
                 Add New Asset
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
+            <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden">
+              <DialogHeader className="px-6 pt-6 pb-4">
                 <DialogTitle>Add New Asset</DialogTitle>
                 <DialogDescription>
                   Enter the details of the new asset
@@ -679,6 +750,25 @@ export default function AssetsPage() {
                   )}
                 </div>
 
+                {/* Supplier Card */}
+                {profileAsset.supplier && (
+                  <div className="rounded-lg border bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
+                      <Building2 className="h-4 w-4" />
+                      Supplier
+                    </div>
+                    <div className="space-y-2">
+                      <p className="font-semibold">{profileAsset.supplier.name}</p>
+                      {profileAsset.supplier.contact_email && (
+                        <p className="text-sm text-muted-foreground">{profileAsset.supplier.contact_email}</p>
+                      )}
+                      {profileAsset.supplier.phone && (
+                        <p className="text-sm text-muted-foreground">{profileAsset.supplier.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Details Grid */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="rounded-lg border bg-card p-4 space-y-1">
@@ -711,33 +801,125 @@ export default function AssetsPage() {
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
                     <Shield className="h-4 w-4" />
                     Warranty Information
+                    {profileAsset.is_warranty_active === true && (
+                      <Badge className="text-xs bg-green-600 hover:bg-green-600 ml-auto">Active</Badge>
+                    )}
+                    {profileAsset.is_warranty_active === false && profileAsset.warranty && (
+                      <Badge variant="destructive" className="text-xs ml-auto">Expired</Badge>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Duration</p>
-                      <p className="font-medium">
-                        {profileAsset.warranty_months ? `${profileAsset.warranty_months} months` : "No warranty"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Expiry Date</p>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">{formatDate(profileAsset.warranty_expiry_date ?? null)}</p>
-                        {profileAsset.is_warranty_active === false && profileAsset.warranty_expiry_date && (
-                          <Badge variant="destructive" className="text-xs">Expired</Badge>
-                        )}
-                        {profileAsset.is_warranty_active === true && (
-                          <Badge className="text-xs bg-green-600 hover:bg-green-600">Active</Badge>
-                        )}
+                  {profileAsset.warranty ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Provider</p>
+                          <p className="font-medium">{profileAsset.warranty.provider_name}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Duration</p>
+                          <p className="font-medium">{profileAsset.warranty.duration_months} months</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Start Date</p>
+                          <p className="font-medium">{formatDate(profileAsset.warranty.start_date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">End Date</p>
+                          <p className="font-medium">{formatDate(profileAsset.warranty.end_date)}</p>
+                        </div>
                       </div>
+                      {profileAsset.warranty.terms_conditions && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Terms & Conditions</p>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{profileAsset.warranty.terms_conditions}</p>
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    <p className="text-muted-foreground italic">No warranty information</p>
+                  )}
+                </div>
+
+                {/* Hardware Components Section */}
+                <div className="rounded-lg border bg-card p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
+                    <Cpu className="h-4 w-4" />
+                    Hardware Components
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="ml-auto h-7 text-xs"
+                      onClick={openInstallComponentDialog}
+                    >
+                      <Wrench className="h-3 w-3 mr-1" />
+                      Install Component
+                    </Button>
                   </div>
+                  {loadingComponents ? (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-4">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Loading components...
+                    </div>
+                  ) : componentHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {componentHistory.map((item) => (
+                        <div 
+                          key={item.id} 
+                          className={`rounded-lg border p-3 ${!item.removed_date ? 'bg-green-50 border-green-200' : 'bg-slate-50'}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{item.component?.name || 'Unknown Component'}</p>
+                                <Badge variant="secondary" className="text-xs">
+                                  {item.component?.category || 'Unknown'}
+                                </Badge>
+                                {!item.removed_date && (
+                                  <Badge className="text-xs bg-green-600 hover:bg-green-600">Installed</Badge>
+                                )}
+                              </div>
+                              {item.component?.serial_number && (
+                                <p className="text-xs text-muted-foreground font-mono">{item.component.serial_number}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                Installed: {formatDate(item.installed_date)}
+                              </p>
+                              {item.removed_date && (
+                                <p className="text-xs text-muted-foreground">
+                                  Removed: {formatDate(item.removed_date)}
+                                  {item.removal_reason && ` - ${item.removal_reason}`}
+                                </p>
+                              )}
+                              {item.notes && (
+                                <p className="text-xs text-muted-foreground italic">{item.notes}</p>
+                              )}
+                            </div>
+                            {!item.removed_date && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleRemoveComponent(item.id, "Removed by user")}
+                              >
+                                Remove
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground italic text-center py-4">No components installed</p>
+                  )}
                 </div>
 
                 {/* Notes */}
                 {profileAsset.notes && (
                   <div className="rounded-lg border bg-card p-4">
-                    <div className="text-sm font-medium text-muted-foreground mb-2">Notes</div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
+                      <Info className="h-4 w-4" />
+                      Notes
+                    </div>
                     <p className="text-sm whitespace-pre-wrap">{profileAsset.notes}</p>
                   </div>
                 )}
@@ -754,6 +936,71 @@ export default function AssetsPage() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Install Component Dialog */}
+      <Dialog open={installDialogOpen} onOpenChange={setInstallDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Install Component
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Component</label>
+              <Select value={selectedComponentId} onValueChange={setSelectedComponentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a component to install..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableComponents.map((comp) => (
+                    <SelectItem key={comp.id} value={comp.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <span>{comp.name}</span>
+                        <span className="text-muted-foreground">({comp.category})</span>
+                        {comp.serial_number && (
+                          <span className="text-xs font-mono text-muted-foreground">- {comp.serial_number}</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableComponents.length === 0 && (
+                <p className="text-xs text-muted-foreground">No available components. Add components in the Components page first.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Notes (Optional)</label>
+              <Textarea 
+                placeholder="Add any notes about this installation..."
+                value={installNotes}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInstallNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInstallDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleInstallComponent} 
+              disabled={!selectedComponentId || installing}
+            >
+              {installing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  Installing...
+                </>
+              ) : (
+                "Install Component"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

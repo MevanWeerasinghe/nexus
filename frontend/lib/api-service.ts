@@ -61,11 +61,107 @@ export interface Employee {
   updated_at: string;
 }
 
+// ============== Supplier Types ==============
+
+export interface Supplier {
+  id: number;
+  name: string;
+  contact_email?: string;
+  phone?: string;
+  address?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierCreate {
+  name: string;
+  contact_email?: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface SupplierUpdate extends Partial<SupplierCreate> {}
+
+// ============== Warranty Types ==============
+
+export interface Warranty {
+  id: number;
+  asset_id: number;
+  provider_name: string;
+  duration_months: number;
+  start_date: string;
+  end_date: string;
+  terms_conditions?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WarrantyCreate {
+  provider_name: string;
+  duration_months: number;
+  start_date: string;
+  terms_conditions?: string;
+}
+
+// ============== Component Types ==============
+
+export interface Component {
+  id: number;
+  name: string;
+  category: string;
+  serial_number?: string;
+  purchase_price?: number;
+  purchase_date?: string;
+  supplier_id?: number;
+  status: string;
+  specifications?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  supplier?: Supplier;
+}
+
+export interface ComponentCreate {
+  name: string;
+  category: string;
+  serial_number?: string;
+  purchase_price?: number;
+  purchase_date?: string;
+  supplier_id?: number;
+  specifications?: string;
+  notes?: string;
+}
+
+export interface ComponentUpdate extends Partial<ComponentCreate> {
+  status?: string;
+}
+
+export interface AssetComponentHistory {
+  id: number;
+  asset_id: number;
+  component_id: number;
+  installed_date: string;
+  installed_by?: string;
+  removed_date?: string;
+  removal_reason?: string;
+  notes?: string;
+  component?: Component;
+}
+
+export interface InstallComponentRequest {
+  component_id: number;
+  notes?: string;
+  installed_by?: string;
+}
+
+// ============== Asset Types ==============
+
 export interface Asset {
   id: number;
   asset_tag: string;
   serial_number?: string;
   category_id: number;
+  supplier_id?: number;
   employee_id?: number;
   manufacturer: string;
   model_name: string;
@@ -80,7 +176,9 @@ export interface Asset {
   created_at: string;
   updated_at: string;
   category?: Category;
+  supplier?: Supplier;
   employee?: Employee;
+  warranty?: Warranty;
   is_warranty_active: boolean;
   days_until_warranty_expiry?: number;
 }
@@ -89,6 +187,7 @@ export interface AssetCreate {
   asset_tag: string;
   serial_number?: string;
   category_id: number;
+  supplier_id?: number;
   manufacturer: string;
   model_name: string;
   purchase_date?: string;
@@ -98,9 +197,10 @@ export interface AssetCreate {
   assigned_to?: string;
   location?: string;
   notes?: string;
+  warranty?: WarrantyCreate;
 }
 
-export interface AssetUpdate extends Partial<AssetCreate> {}
+export interface AssetUpdate extends Partial<Omit<AssetCreate, 'warranty'>> {}
 
 export interface DashboardMetrics {
   total_assets: number;
@@ -339,3 +439,103 @@ export async function getAssignmentHistory(assetId: number): Promise<AssignmentH
   return response.data;
 }
 
+// ============== Supplier Functions ==============
+
+export async function getSuppliers(search?: string): Promise<Supplier[]> {
+  const params = search ? `?search=${encodeURIComponent(search)}` : '';
+  const response = await apiClient.get<Supplier[]>(`/api/v1/suppliers/${params}`);
+  return response.data;
+}
+
+export async function getSupplier(id: number): Promise<Supplier> {
+  const response = await apiClient.get<Supplier>(`/api/v1/suppliers/${id}`);
+  return response.data;
+}
+
+export async function createSupplier(data: SupplierCreate): Promise<Supplier> {
+  const response = await apiClient.post<Supplier>('/api/v1/suppliers/', data);
+  return response.data;
+}
+
+export async function updateSupplier(id: number, data: SupplierUpdate): Promise<Supplier> {
+  const response = await apiClient.put<Supplier>(`/api/v1/suppliers/${id}`, data);
+  return response.data;
+}
+
+export async function deleteSupplier(id: number): Promise<void> {
+  await apiClient.delete(`/api/v1/suppliers/${id}`);
+}
+
+// ============== Component Functions ==============
+
+export interface ComponentFilters {
+  search?: string;
+  category?: string;
+  status?: string;
+  supplier_id?: number;
+}
+
+export async function getComponents(filters?: ComponentFilters): Promise<Component[]> {
+  const params = new URLSearchParams();
+  
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.category) params.append('category', filters.category);
+  if (filters?.status) params.append('status', filters.status);
+  if (filters?.supplier_id) params.append('supplier_id', filters.supplier_id.toString());
+  
+  const queryString = params.toString();
+  const url = queryString ? `/api/v1/components/?${queryString}` : '/api/v1/components/';
+  
+  const response = await apiClient.get<Component[]>(url);
+  return response.data;
+}
+
+export async function getAvailableComponents(category?: string): Promise<Component[]> {
+  const params = category ? `?category=${encodeURIComponent(category)}` : '';
+  const response = await apiClient.get<Component[]>(`/api/v1/components/available${params}`);
+  return response.data;
+}
+
+export async function getComponentCategories(): Promise<string[]> {
+  const response = await apiClient.get<string[]>('/api/v1/components/categories');
+  return response.data;
+}
+
+export async function getComponent(id: number): Promise<Component> {
+  const response = await apiClient.get<Component>(`/api/v1/components/${id}`);
+  return response.data;
+}
+
+export async function createComponent(data: ComponentCreate): Promise<Component> {
+  const response = await apiClient.post<Component>('/api/v1/components/', data);
+  return response.data;
+}
+
+export async function updateComponent(id: number, data: ComponentUpdate): Promise<Component> {
+  const response = await apiClient.put<Component>(`/api/v1/components/${id}`, data);
+  return response.data;
+}
+
+export async function deleteComponent(id: number): Promise<void> {
+  await apiClient.delete(`/api/v1/components/${id}`);
+}
+
+// ============== Asset Component Functions ==============
+
+export async function getAssetComponents(assetId: number): Promise<AssetComponentHistory[]> {
+  const response = await apiClient.get<AssetComponentHistory[]>(`/api/v1/assets/${assetId}/components`);
+  return response.data;
+}
+
+export async function installComponent(assetId: number, data: InstallComponentRequest): Promise<AssetComponentHistory> {
+  const response = await apiClient.post<AssetComponentHistory>(`/api/v1/assets/${assetId}/install-component`, data);
+  return response.data;
+}
+
+export async function removeComponent(assetId: number, historyId: number, reason?: string): Promise<AssetComponentHistory> {
+  const response = await apiClient.post<AssetComponentHistory>(
+    `/api/v1/assets/${assetId}/remove-component/${historyId}`,
+    { removal_reason: reason }
+  );
+  return response.data;
+}

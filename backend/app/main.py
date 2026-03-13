@@ -2,10 +2,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.config import settings
-from app.routes import auth, assets, employees
+from app.routes import auth, assets, employees, suppliers, components
 from app.models.user import User
 from app.models.asset import Asset, Category
 from app.models.employee import Employee
+from app.models.supplier import Supplier
+from app.models.warranty import Warranty
+from app.models.component import Component, AssetComponentHistory
 
 # Create database tables - ensure all models are imported first
 print("Creating database tables...")
@@ -35,6 +38,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(assets.router)
 app.include_router(employees.router)
+app.include_router(suppliers.router)
+app.include_router(components.router)
 
 
 @app.get("/")

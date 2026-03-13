@@ -60,6 +60,9 @@ class Asset(Base):
     # Foreign key to employee (who holds the asset)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True)
     
+    # Foreign key to supplier
+    supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True)
+    
     # Asset details
     manufacturer = Column(String(100), nullable=False)
     model_name = Column(String(100), nullable=False)
@@ -68,7 +71,7 @@ class Asset(Base):
     purchase_date = Column(Date, nullable=True)
     purchase_price = Column(Float, nullable=True)
     
-    # Warranty information
+    # Legacy warranty fields (kept for backward compatibility, warranty in separate table)
     warranty_months = Column(Integer, nullable=True, default=12)
     warranty_expiry_date = Column(Date, nullable=True)
     
@@ -90,8 +93,17 @@ class Asset(Base):
     # Relationship to employee
     employee = relationship("Employee", back_populates="assets")
     
+    # Relationship to supplier
+    supplier = relationship("Supplier", back_populates="assets")
+    
+    # Relationship to warranty (one-to-one)
+    warranty = relationship("Warranty", back_populates="asset", uselist=False, cascade="all, delete-orphan")
+    
     # Relationship to assignment history
     assignment_history = relationship("AssignmentHistory", back_populates="asset", order_by="desc(AssignmentHistory.assigned_at)")
+    
+    # Relationship to component history
+    component_history = relationship("AssetComponentHistory", back_populates="asset", order_by="desc(AssetComponentHistory.installed_date)")
     
     def __repr__(self):
         return f"<Asset(id={self.id}, asset_tag='{self.asset_tag}', status='{self.status}')>"

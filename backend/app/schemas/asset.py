@@ -2,6 +2,9 @@ from pydantic import BaseModel, Field, computed_field
 from typing import Optional, List, TYPE_CHECKING
 from datetime import date, datetime
 
+from app.schemas.warranty import WarrantyCreate, WarrantyResponse
+from app.schemas.supplier import SupplierResponse
+
 # Forward reference for EmployeeResponse
 if TYPE_CHECKING:
     from app.schemas.employee import EmployeeResponse
@@ -52,6 +55,7 @@ class AssetCreate(BaseModel):
     asset_tag: str = Field(..., min_length=1, max_length=50)
     serial_number: Optional[str] = Field(None, max_length=100)
     category_id: int
+    supplier_id: Optional[int] = None
     manufacturer: str = Field(..., min_length=1, max_length=100)
     model_name: str = Field(..., min_length=1, max_length=100)
     purchase_date: Optional[date] = None
@@ -61,6 +65,8 @@ class AssetCreate(BaseModel):
     assigned_to: Optional[str] = Field(None, max_length=255)
     location: Optional[str] = Field(None, max_length=255)
     notes: Optional[str] = Field(None, max_length=500)
+    # Optional warranty data for creating warranty record
+    warranty: Optional[WarrantyCreate] = None
 
 
 class AssetUpdate(BaseModel):
@@ -68,6 +74,7 @@ class AssetUpdate(BaseModel):
     asset_tag: Optional[str] = Field(None, min_length=1, max_length=50)
     serial_number: Optional[str] = Field(None, max_length=100)
     category_id: Optional[int] = None
+    supplier_id: Optional[int] = None
     manufacturer: Optional[str] = Field(None, min_length=1, max_length=100)
     model_name: Optional[str] = Field(None, min_length=1, max_length=100)
     purchase_date: Optional[date] = None
@@ -101,6 +108,7 @@ class AssetResponse(BaseModel):
     asset_tag: str
     serial_number: Optional[str]
     category_id: int
+    supplier_id: Optional[int] = None
     employee_id: Optional[int] = None
     manufacturer: str
     model_name: str
@@ -118,13 +126,23 @@ class AssetResponse(BaseModel):
     # Include category details
     category: Optional[CategoryResponse] = None
     
+    # Include supplier details
+    supplier: Optional[SupplierResponse] = None
+    
     # Include employee details (who holds the asset)
     employee: Optional[EmployeeInfo] = None
+    
+    # Include warranty details (one-to-one)
+    warranty: Optional[WarrantyResponse] = None
     
     @computed_field
     @property
     def is_warranty_active(self) -> bool:
-        """Check if warranty is still active."""
+        """Check if warranty is still active (from warranty table or legacy field)."""
+        # Check new warranty table first
+        if self.warranty:
+            return self.warranty.end_date >= date.today()
+        # Fall back to legacy warranty_expiry_date
         if self.warranty_expiry_date is None:
             return False
         return self.warranty_expiry_date >= date.today()
@@ -133,6 +151,11 @@ class AssetResponse(BaseModel):
     @property
     def days_until_warranty_expiry(self) -> Optional[int]:
         """Calculate days until warranty expires."""
+        # Check new warranty table first
+        if self.warranty:
+            delta = self.warranty.end_date - date.today()
+            return delta.days
+        # Fall back to legacy warranty_expiry_date
         if self.warranty_expiry_date is None:
             return None
         delta = self.warranty_expiry_date - date.today()
