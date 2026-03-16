@@ -103,6 +103,46 @@ export default function ComponentsPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
 
+  const getErrorMessage = (err: any, fallback: string): string => {
+    const detail = err?.response?.data?.detail ?? err?.message;
+
+    if (typeof detail === "string") {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (item && typeof item === "object" && typeof item.msg === "string") return item.msg;
+          return null;
+        })
+        .filter(Boolean);
+
+      if (messages.length > 0) {
+        return messages.join("; ");
+      }
+    }
+
+    if (detail && typeof detail === "object") {
+      if (typeof detail.msg === "string") {
+        return detail.msg;
+      }
+      return fallback;
+    }
+
+    return fallback;
+  };
+
+  const toApiDateTime = (dateValue?: string): string | undefined => {
+    if (!dateValue) return undefined;
+    // The backend expects datetime, while the UI date picker returns YYYY-MM-DD.
+    if (dateValue.includes("T") || dateValue.includes("t") || dateValue.includes(" ") || dateValue.includes("_")) {
+      return dateValue;
+    }
+    return `${dateValue}T00:00:00`;
+  };
+
   const fetchComponents = async () => {
     try {
       setLoading(true);
@@ -115,7 +155,7 @@ export default function ComponentsPage() {
       setComponents(data);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to load components");
+      setError(getErrorMessage(err, "Failed to load components"));
     } finally {
       setLoading(false);
     }
@@ -172,7 +212,7 @@ export default function ComponentsPage() {
         category: formData.category,
         serial_number: formData.serial_number?.trim() || undefined,
         purchase_price: formData.purchase_price || undefined,
-        purchase_date: formData.purchase_date || undefined,
+        purchase_date: toApiDateTime(formData.purchase_date),
         supplier_id: formData.supplier_id || undefined,
         specifications: formData.specifications?.trim() || undefined,
         notes: formData.notes?.trim() || undefined,
@@ -182,7 +222,7 @@ export default function ComponentsPage() {
       setIsAddDialogOpen(false);
       fetchComponents();
     } catch (err: any) {
-      setFormError(err.response?.data?.detail || "Failed to create component");
+      setFormError(getErrorMessage(err, "Failed to create component"));
     } finally {
       setIsSubmitting(false);
     }
@@ -204,7 +244,7 @@ export default function ComponentsPage() {
         category: formData.category,
         serial_number: formData.serial_number?.trim() || undefined,
         purchase_price: formData.purchase_price || undefined,
-        purchase_date: formData.purchase_date || undefined,
+        purchase_date: toApiDateTime(formData.purchase_date),
         supplier_id: formData.supplier_id || undefined,
         specifications: formData.specifications?.trim() || undefined,
         notes: formData.notes?.trim() || undefined,
@@ -216,7 +256,7 @@ export default function ComponentsPage() {
       setEditingComponent(null);
       fetchComponents();
     } catch (err: any) {
-      setFormError(err.response?.data?.detail || "Failed to update component");
+      setFormError(getErrorMessage(err, "Failed to update component"));
     } finally {
       setIsSubmitting(false);
     }
@@ -248,7 +288,7 @@ export default function ComponentsPage() {
       await deleteComponent(id);
       fetchComponents();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to delete component");
+      setError(getErrorMessage(err, "Failed to delete component"));
     }
   };
 
@@ -329,7 +369,7 @@ export default function ComponentsPage() {
               Add Component
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[650px]">
+          <DialogContent className="w-[95vw] sm:max-w-[900px]">
             <DialogHeader>
               <DialogTitle>Add New Component</DialogTitle>
               <DialogDescription>
@@ -344,7 +384,7 @@ export default function ComponentsPage() {
                   </Alert>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Component Name *</Label>
                     <Input
@@ -374,7 +414,7 @@ export default function ComponentsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="serial_number">Serial Number</Label>
                     <Input
@@ -406,7 +446,7 @@ export default function ComponentsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="purchase_price">Purchase Price</Label>
                     <Input
@@ -431,26 +471,28 @@ export default function ComponentsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="specifications">Specifications</Label>
-                  <Textarea
-                    id="specifications"
-                    value={formData.specifications}
-                    onChange={handleSpecsChange}
-                    placeholder="DDR4, 3200MHz, CL16..."
-                    rows={2}
-                  />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="specifications">Specifications</Label>
+                    <Textarea
+                      id="specifications"
+                      value={formData.specifications}
+                      onChange={handleSpecsChange}
+                      placeholder="DDR4, 3200MHz, CL16..."
+                      rows={3}
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={handleNotesChange}
-                    placeholder="Additional notes..."
-                    rows={2}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={handleNotesChange}
+                      placeholder="Additional notes..."
+                      rows={3}
+                    />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -643,7 +685,7 @@ export default function ComponentsPage() {
           setEditingComponent(null);
         }
       }}>
-        <DialogContent className="sm:max-w-[650px]">
+        <DialogContent className="w-[95vw] sm:max-w-[900px]">
           <DialogHeader>
             <DialogTitle>Edit Component</DialogTitle>
             <DialogDescription>
@@ -658,7 +700,7 @@ export default function ComponentsPage() {
                 </Alert>
               )}
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Component Name *</Label>
                   <Input
@@ -688,7 +730,7 @@ export default function ComponentsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-serial_number">Serial Number</Label>
                   <Input
@@ -720,7 +762,7 @@ export default function ComponentsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-purchase_price">Purchase Price</Label>
                   <Input
@@ -763,26 +805,28 @@ export default function ComponentsPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-specifications">Specifications</Label>
-                <Textarea
-                  id="edit-specifications"
-                  value={formData.specifications}
-                  onChange={handleSpecsChange}
-                  placeholder="DDR4, 3200MHz, CL16..."
-                  rows={2}
-                />
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-specifications">Specifications</Label>
+                  <Textarea
+                    id="edit-specifications"
+                    value={formData.specifications}
+                    onChange={handleSpecsChange}
+                    placeholder="DDR4, 3200MHz, CL16..."
+                    rows={3}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-notes">Notes</Label>
-                <Textarea
-                  id="edit-notes"
-                  value={formData.notes}
-                  onChange={handleNotesChange}
-                  placeholder="Additional notes..."
-                  rows={2}
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="edit-notes">Notes</Label>
+                  <Textarea
+                    id="edit-notes"
+                    value={formData.notes}
+                    onChange={handleNotesChange}
+                    placeholder="Additional notes..."
+                    rows={3}
+                  />
+                </div>
               </div>
             </div>
             <DialogFooter>

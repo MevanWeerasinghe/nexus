@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -19,7 +18,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -31,11 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Pencil, Eye, Calendar, MapPin, DollarSign, Shield, Tag, Hash, Building, Building2, Package, History, Clock, Cpu, Wrench, Info, ChevronsUpDown, Check } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
+import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Eye } from "lucide-react";
 import AddAssetForm from "@/components/AddAssetForm";
+import AssignAssetDialog from "@/components/assets/AssignAssetDialog";
+import AssetProfileDialog from "@/components/assets/AssetProfileDialog";
+import AssignmentHistoryDialog from "@/components/assets/AssignmentHistoryDialog";
+import EditAssetDialog, { EditAssetFormData } from "@/components/assets/EditAssetDialog";
+import InstallComponentDialog from "@/components/assets/InstallComponentDialog";
 import { 
   getAssets, 
   getCategories,
@@ -89,15 +89,12 @@ export default function AssetsPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
-  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
-  const [employeePickerOpen, setEmployeePickerOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
-  const employeePickerRef = useRef<HTMLDivElement | null>(null);
 
   // Edit dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<EditAssetFormData>({
     asset_tag: "",
     serial_number: "",
     category_id: "",
@@ -206,8 +203,6 @@ export default function AssetsPage() {
   const openAssignDialog = (asset: Asset) => {
     setSelectedAsset(asset);
     setSelectedEmployeeId(asset.employee_id?.toString() || "unassigned");
-    setEmployeeSearchTerm("");
-    setEmployeePickerOpen(false);
     setAssignDialogOpen(true);
   };
 
@@ -221,8 +216,6 @@ export default function AssetsPage() {
       setAssignDialogOpen(false);
       setSelectedAsset(null);
       setSelectedEmployeeId("");
-      setEmployeeSearchTerm("");
-      setEmployeePickerOpen(false);
       fetchAssets();
     } catch (err: any) {
       console.error("Failed to assign asset:", err);
@@ -448,29 +441,9 @@ export default function AssetsPage() {
     });
   };
 
-  const filteredEmployees = employees.filter((emp) => {
-    const query = employeeSearchTerm.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      emp.name.toLowerCase().includes(query) ||
-      emp.email.toLowerCase().includes(query)
-    );
-  });
-
-  const selectedEmployee = employees.find((emp) => emp.id.toString() === selectedEmployeeId);
-
-  useEffect(() => {
-    if (!employeePickerOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!employeePickerRef.current?.contains(event.target as Node)) {
-        setEmployeePickerOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [employeePickerOpen]);
+  const handleEditFormChange = (field: keyof EditAssetFormData, value: string) => {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -688,674 +661,68 @@ export default function AssetsPage() {
         </CardContent>
       </Card>
 
-      {/* Asset Profile Dialog */}
-      <Dialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
-          {profileAsset && (
-            <>
-              {/* Header Section */}
-              <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <h2 className="text-2xl font-bold">{profileAsset.asset_tag}</h2>
-                    <p className="text-slate-300">
-                      {profileAsset.manufacturer} {profileAsset.model_name}
-                    </p>
-                    <p className="text-sm text-slate-400 font-mono">{profileAsset.serial_number}</p>
-                  </div>
-                  <div className="text-right space-y-2">
-                    <Badge 
-                      className={`${getStatusColor(profileAsset.status)} text-sm px-3 py-1`}
-                    >
-                      {profileAsset.status}
-                    </Badge>
-                    <p className="text-sm text-slate-400">
-                      {getCategoryName(profileAsset.category_id)}
-                    </p>
-                  </div>
-                </div>
-              </div>
+      <AssetProfileDialog
+        open={profileDialogOpen}
+        onOpenChange={setProfileDialogOpen}
+        profileAsset={profileAsset}
+        componentHistory={componentHistory}
+        loadingComponents={loadingComponents}
+        assetStatuses={ASSET_STATUSES}
+        getStatusColor={getStatusColor}
+        getCategoryName={getCategoryName}
+        formatDate={formatDate}
+        onEdit={handleProfileEdit}
+        onAssign={handleProfileAssign}
+        onUnassign={handleProfileUnassign}
+        onDelete={handleProfileDelete}
+        onStatusChange={handleProfileStatusChange}
+        onOpenInstallDialog={openInstallComponentDialog}
+        onRemoveComponent={handleRemoveComponent}
+        onOpenHistoryDialog={openHistoryDialog}
+      />
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 px-6 py-4 bg-slate-50 border-b">
-                <Button variant="default" size="sm" onClick={handleProfileEdit} className="gap-2">
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleProfileAssign} className="gap-2">
-                  <UserPlus className="h-4 w-4" />
-                  {profileAsset.employee_id ? "Reassign" : "Assign"}
-                </Button>
-                {profileAsset.employee_id && (
-                  <Button variant="outline" size="sm" onClick={handleProfileUnassign} className="gap-2">
-                    <Unlink className="h-4 w-4" />
-                    Unassign
-                  </Button>
-                )}
-                <div className="flex-1" />
-                <Select
-                  value={profileAsset.status}
-                  onValueChange={handleProfileStatusChange}
-                >
-                  <SelectTrigger className="w-[160px] h-9">
-                    <SelectValue placeholder="Change Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ASSET_STATUSES.map((status) => (
-                      <SelectItem 
-                        key={status} 
-                        value={status}
-                        disabled={status === "Deployed"}
-                      >
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="destructive" size="sm" onClick={handleProfileDelete} className="gap-2">
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
-              </div>
+      <InstallComponentDialog
+        open={installDialogOpen}
+        onOpenChange={setInstallDialogOpen}
+        availableComponents={availableComponents}
+        selectedComponentId={selectedComponentId}
+        onSelectedComponentChange={setSelectedComponentId}
+        installNotes={installNotes}
+        onInstallNotesChange={setInstallNotes}
+        installing={installing}
+        onInstall={handleInstallComponent}
+      />
 
-              {/* Content Section */}
-              <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
-                {/* Assignment Card */}
-                <div className="rounded-lg border bg-card p-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
-                    <UserPlus className="h-4 w-4" />
-                    Assignment
-                  </div>
-                  {profileAsset.employee ? (
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg">
-                        {profileAsset.employee.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-semibold">{profileAsset.employee.name}</p>
-                        <p className="text-sm text-muted-foreground">{profileAsset.employee.email}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground italic">Not assigned to any employee</p>
-                  )}
-                </div>
+      <AssignmentHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        assetTag={profileAsset?.asset_tag}
+        loadingHistory={loadingHistory}
+        assignmentHistory={assignmentHistory}
+        formatDate={formatDate}
+      />
 
-                {/* Supplier Card */}
-                {profileAsset.supplier && (
-                  <div className="rounded-lg border bg-card p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
-                      <Building2 className="h-4 w-4" />
-                      Supplier
-                    </div>
-                    <div className="space-y-2">
-                      <p className="font-semibold">{profileAsset.supplier.name}</p>
-                      {profileAsset.supplier.contact_email && (
-                        <p className="text-sm text-muted-foreground">{profileAsset.supplier.contact_email}</p>
-                      )}
-                      {profileAsset.supplier.phone && (
-                        <p className="text-sm text-muted-foreground">{profileAsset.supplier.phone}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
+      <EditAssetDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        editingAsset={editingAsset}
+        editForm={editForm}
+        categories={categories}
+        saving={saving}
+        onFieldChange={handleEditFormChange}
+        onSave={handleEditAsset}
+      />
 
-                {/* Details Grid */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="rounded-lg border bg-card p-4 space-y-1">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      <MapPin className="h-3 w-3" />
-                      Location
-                    </div>
-                    <p className="font-medium">{profileAsset.location || "Not specified"}</p>
-                  </div>
-                  <div className="rounded-lg border bg-card p-4 space-y-1">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      <Calendar className="h-3 w-3" />
-                      Purchased
-                    </div>
-                    <p className="font-medium">{formatDate(profileAsset.purchase_date ?? null)}</p>
-                  </div>
-                  <div className="rounded-lg border bg-card p-4 space-y-1">
-                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                      <DollarSign className="h-3 w-3" />
-                      Price
-                    </div>
-                    <p className="font-medium">
-                      {profileAsset.purchase_price ? `$${profileAsset.purchase_price.toLocaleString()}` : "-"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Warranty Section */}
-                <div className="rounded-lg border bg-card p-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
-                    <Shield className="h-4 w-4" />
-                    Warranty Information
-                    {profileAsset.is_warranty_active === true && (
-                      <Badge className="text-xs bg-green-600 hover:bg-green-600 ml-auto">Active</Badge>
-                    )}
-                    {profileAsset.is_warranty_active === false && profileAsset.warranty && (
-                      <Badge variant="destructive" className="text-xs ml-auto">Expired</Badge>
-                    )}
-                  </div>
-                  {profileAsset.warranty ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Provider</p>
-                          <p className="font-medium">{profileAsset.warranty.provider_name}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Duration</p>
-                          <p className="font-medium">{profileAsset.warranty.duration_months} months</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Start Date</p>
-                          <p className="font-medium">{formatDate(profileAsset.warranty.start_date)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">End Date</p>
-                          <p className="font-medium">{formatDate(profileAsset.warranty.end_date)}</p>
-                        </div>
-                      </div>
-                      {profileAsset.warranty.terms_conditions && (
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Terms & Conditions</p>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{profileAsset.warranty.terms_conditions}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground italic">No warranty information</p>
-                  )}
-                </div>
-
-                {/* Hardware Components Section */}
-                <div className="rounded-lg border bg-card p-4">
-                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-3">
-                    <Cpu className="h-4 w-4" />
-                    Hardware Components
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="ml-auto h-7 text-xs"
-                      onClick={openInstallComponentDialog}
-                    >
-                      <Wrench className="h-3 w-3 mr-1" />
-                      Install Component
-                    </Button>
-                  </div>
-                  {loadingComponents ? (
-                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-4">
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      Loading components...
-                    </div>
-                  ) : componentHistory.length > 0 ? (
-                    <div className="space-y-3">
-                      {componentHistory.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className={`rounded-lg border p-3 ${!item.removed_date ? 'bg-green-50 border-green-200' : 'bg-slate-50'}`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">{item.component?.name || 'Unknown Component'}</p>
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.component?.category || 'Unknown'}
-                                </Badge>
-                                {!item.removed_date && (
-                                  <Badge className="text-xs bg-green-600 hover:bg-green-600">Installed</Badge>
-                                )}
-                              </div>
-                              {item.component?.serial_number && (
-                                <p className="text-xs text-muted-foreground font-mono">{item.component.serial_number}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground">
-                                Installed: {formatDate(item.installed_date)}
-                              </p>
-                              {item.removed_date && (
-                                <p className="text-xs text-muted-foreground">
-                                  Removed: {formatDate(item.removed_date)}
-                                  {item.removal_reason && ` - ${item.removal_reason}`}
-                                </p>
-                              )}
-                              {item.notes && (
-                                <p className="text-xs text-muted-foreground italic">{item.notes}</p>
-                              )}
-                            </div>
-                            {!item.removed_date && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => handleRemoveComponent(item.id, "Removed by user")}
-                              >
-                                Remove
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground italic text-center py-4">No components installed</p>
-                  )}
-                </div>
-
-                {/* Notes */}
-                {profileAsset.notes && (
-                  <div className="rounded-lg border bg-card p-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-2">
-                      <Info className="h-4 w-4" />
-                      Notes
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{profileAsset.notes}</p>
-                  </div>
-                )}
-
-                {/* View Assignment History Button */}
-                <Button 
-                  variant="outline" 
-                  className="w-full gap-2" 
-                  onClick={openHistoryDialog}
-                >
-                  <History className="h-4 w-4" />
-                  View Assignment History
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Install Component Dialog */}
-      <Dialog open={installDialogOpen} onOpenChange={setInstallDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Install Component
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select Component</label>
-              <Select value={selectedComponentId} onValueChange={setSelectedComponentId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a component to install..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableComponents.map((comp) => (
-                    <SelectItem key={comp.id} value={comp.id.toString()}>
-                      <div className="flex items-center gap-2">
-                        <span>{comp.name}</span>
-                        <span className="text-muted-foreground">({comp.category})</span>
-                        {comp.serial_number && (
-                          <span className="text-xs font-mono text-muted-foreground">- {comp.serial_number}</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {availableComponents.length === 0 && (
-                <p className="text-xs text-muted-foreground">No available components. Add components in the Components page first.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Notes (Optional)</label>
-              <Textarea 
-                placeholder="Add any notes about this installation..."
-                value={installNotes}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInstallNotes(e.target.value)}
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInstallDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleInstallComponent} 
-              disabled={!selectedComponentId || installing}
-            >
-              {installing ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Installing...
-                </>
-              ) : (
-                "Install Component"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Assignment History Dialog */}
-      <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
-        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-5">
-            <div className="flex items-center gap-3">
-              <History className="h-5 w-5" />
-              <div>
-                <h2 className="text-lg font-bold">Assignment History</h2>
-                {profileAsset && (
-                  <p className="text-slate-300 text-sm">{profileAsset.asset_tag}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="p-4 max-h-[60vh] overflow-y-auto">
-            {loadingHistory ? (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-8">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Loading history...
-              </div>
-            ) : assignmentHistory.length > 0 ? (
-              <div className="space-y-3">
-                {assignmentHistory.map((record, index) => (
-                  <div 
-                    key={record.id} 
-                    className={`flex items-start gap-3 ${index !== assignmentHistory.length - 1 ? 'pb-3 border-b' : ''}`}
-                  >
-                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm flex-shrink-0">
-                      {record.employee_name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{record.employee_name}</p>
-                        {!record.unassigned_at && (
-                          <Badge className="text-xs bg-green-600 hover:bg-green-600">Current</Badge>
-                        )}
-                      </div>
-                      {record.employee_email && (
-                        <p className="text-xs text-muted-foreground">{record.employee_email}</p>
-                      )}
-                      {record.employee_department && (
-                        <p className="text-xs text-muted-foreground">{record.employee_department}</p>
-                      )}
-                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          {formatDate(record.assigned_at)}
-                          {record.unassigned_at && (
-                            <> → {formatDate(record.unassigned_at)}</>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <History className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">No assignment history</p>
-                <p className="text-xs text-muted-foreground mt-1">This asset has never been assigned</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Asset Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
-          {editingAsset && (
-            <>
-              {/* Header Section */}
-              <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6">
-                <div className="flex items-center gap-3">
-                  <Pencil className="h-6 w-6" />
-                  <div>
-                    <h2 className="text-xl font-bold">Edit Asset</h2>
-                    <p className="text-slate-300 text-sm">
-                      Update details for {editingAsset.asset_tag}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Form Content */}
-              <div className="p-6 space-y-5 max-h-[55vh] overflow-y-auto">
-                {/* Identity Section */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_asset_tag" className="text-xs uppercase tracking-wide text-muted-foreground">Asset Tag *</Label>
-                    <Input
-                      id="edit_asset_tag"
-                      value={editForm.asset_tag}
-                      onChange={(e) => setEditForm({ ...editForm, asset_tag: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_serial_number" className="text-xs uppercase tracking-wide text-muted-foreground">Serial Number *</Label>
-                    <Input
-                      id="edit_serial_number"
-                      value={editForm.serial_number}
-                      onChange={(e) => setEditForm({ ...editForm, serial_number: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Category & Device Info */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_category" className="text-xs uppercase tracking-wide text-muted-foreground">Category *</Label>
-                    <Select value={editForm.category_id} onValueChange={(value) => setEditForm({ ...editForm, category_id: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id.toString()}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_manufacturer" className="text-xs uppercase tracking-wide text-muted-foreground">Manufacturer</Label>
-                    <Input
-                      id="edit_manufacturer"
-                      value={editForm.manufacturer}
-                      onChange={(e) => setEditForm({ ...editForm, manufacturer: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_model_name" className="text-xs uppercase tracking-wide text-muted-foreground">Model Name</Label>
-                    <Input
-                      id="edit_model_name"
-                      value={editForm.model_name}
-                      onChange={(e) => setEditForm({ ...editForm, model_name: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Purchase & Warranty Info */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_purchase_date" className="text-xs uppercase tracking-wide text-muted-foreground">Purchase Date</Label>
-                    <Input
-                      id="edit_purchase_date"
-                      type="date"
-                      value={editForm.purchase_date}
-                      onChange={(e) => setEditForm({ ...editForm, purchase_date: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_purchase_price" className="text-xs uppercase tracking-wide text-muted-foreground">Purchase Price</Label>
-                    <Input
-                      id="edit_purchase_price"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={editForm.purchase_price}
-                      onChange={(e) => setEditForm({ ...editForm, purchase_price: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_warranty_months" className="text-xs uppercase tracking-wide text-muted-foreground">Warranty (months)</Label>
-                    <Input
-                      id="edit_warranty_months"
-                      type="number"
-                      placeholder="0"
-                      value={editForm.warranty_months}
-                      onChange={(e) => setEditForm({ ...editForm, warranty_months: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit_location" className="text-xs uppercase tracking-wide text-muted-foreground">Location</Label>
-                    <Input
-                      id="edit_location"
-                      value={editForm.location}
-                      onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div className="space-y-2">
-                  <Label htmlFor="edit_notes" className="text-xs uppercase tracking-wide text-muted-foreground">Notes</Label>
-                  <Input
-                    id="edit_notes"
-                    value={editForm.notes}
-                    onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* Footer Actions - Fixed */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t">
-                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleEditAsset} disabled={saving || !editForm.asset_tag || !editForm.serial_number || !editForm.category_id}>
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Assign Asset Dialog */}
-      <Dialog
+      <AssignAssetDialog
         open={assignDialogOpen}
-        onOpenChange={(open) => {
-          setAssignDialogOpen(open);
-          if (!open) {
-            setEmployeeSearchTerm("");
-            setEmployeePickerOpen(false);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Asset</DialogTitle>
-            <DialogDescription>
-              {selectedAsset && (
-                <>Assign <strong>{selectedAsset.asset_tag}</strong> ({selectedAsset.manufacturer} {selectedAsset.model_name}) to an employee</>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="relative" ref={employeePickerRef}>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-between font-normal"
-                onClick={() => setEmployeePickerOpen((prev) => !prev)}
-              >
-                <span className="truncate text-left">
-                  {selectedEmployeeId === "unassigned"
-                    ? "Unassigned"
-                    : selectedEmployee
-                      ? `${selectedEmployee.name} (${selectedEmployee.email})`
-                      : "Select an employee..."}
-                </span>
-                <ChevronsUpDown className="h-4 w-4 opacity-60" />
-              </Button>
-
-              {employeePickerOpen && (
-                <div className="absolute z-50 mt-2 w-full rounded-md border bg-background p-2 shadow-md">
-                  <Input
-                    placeholder="Search employee by name or email..."
-                    value={employeeSearchTerm}
-                    onChange={(e) => setEmployeeSearchTerm(e.target.value)}
-                    className="h-9"
-                    autoFocus
-                  />
-                  <div className="mt-2 max-h-52 overflow-y-auto space-y-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="w-full justify-between font-normal"
-                      onClick={() => {
-                        setSelectedEmployeeId("unassigned");
-                        setEmployeePickerOpen(false);
-                      }}
-                    >
-                      <span className="truncate">Unassigned</span>
-                      {selectedEmployeeId === "unassigned" && <Check className="h-4 w-4" />}
-                    </Button>
-
-                    {filteredEmployees.map((emp) => {
-                      const value = emp.id.toString();
-                      return (
-                        <Button
-                          key={emp.id}
-                          type="button"
-                          variant="ghost"
-                          className="w-full justify-between font-normal"
-                          onClick={() => {
-                            setSelectedEmployeeId(value);
-                            setEmployeePickerOpen(false);
-                          }}
-                        >
-                          <span className="truncate text-left">{emp.name} ({emp.email})</span>
-                          {selectedEmployeeId === value && <Check className="h-4 w-4" />}
-                        </Button>
-                      );
-                    })}
-
-                    {employees.length > 0 && filteredEmployees.length === 0 && (
-                      <p className="px-2 py-1 text-sm text-muted-foreground">No employees match your search.</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            {employees.length === 0 && (
-              <p className="text-sm text-muted-foreground mt-2">
-                No employees found. Go to Employees page to add some.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setAssignDialogOpen(false);
-                setEmployeeSearchTerm("");
-                setEmployeePickerOpen(false);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleAssign} disabled={assigning}>
-              {assigning ? "Assigning..." : "Save Assignment"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setAssignDialogOpen}
+        selectedAsset={selectedAsset}
+        employees={employees}
+        selectedEmployeeId={selectedEmployeeId}
+        onSelectedEmployeeChange={setSelectedEmployeeId}
+        assigning={assigning}
+        onAssign={handleAssign}
+      />
     </div>
   );
 }
