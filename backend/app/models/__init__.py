@@ -4,6 +4,7 @@ from app.models.employee import Employee
 from app.models.supplier import Supplier
 from app.models.warranty import Warranty
 from app.models.component import Component, AssetComponentHistory, ComponentStatus
+from app.models.component_warranty import ComponentWarranty
 
 __all__ = [
     "User", "Role", "user_roles", 
@@ -11,5 +12,6 @@ __all__ = [
     "Employee",
     "Supplier",
     "Warranty",
-    "Component", "AssetComponentHistory", "ComponentStatus"
+    "Component", "AssetComponentHistory", "ComponentStatus",
+    "ComponentWarranty"
 ]

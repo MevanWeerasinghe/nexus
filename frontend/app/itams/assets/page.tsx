@@ -446,7 +446,7 @@ export default function AssetsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-[calc(100dvh-1rem)] p-6 flex flex-col gap-6 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -527,136 +527,138 @@ export default function AssetsPage() {
       </div>
 
       {/* Table */}
-      <Card>
+      <Card className="flex-1 min-h-0 flex flex-col">
         <CardHeader>
           <CardTitle>All Assets</CardTitle>
           <CardDescription>
             Total: {assets.length} assets
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 min-h-0 overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-8">
+            <div className="h-full flex items-center justify-center py-8">
               <RefreshCw className="h-5 w-5 animate-spin mr-2" />
               Loading assets...
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Asset Tag</TableHead>
-                  <TableHead>Serial Number</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Warranty Expiry</TableHead>
-                  <TableHead className="w-[150px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assets.length > 0 ? (
-                  assets.map((asset) => (
-                    <TableRow key={asset.id}>
-                      <TableCell className="font-semibold">{asset.asset_tag}</TableCell>
-                      <TableCell className="font-mono text-sm">{asset.serial_number}</TableCell>
-                      <TableCell>{getCategoryName(asset.category_id)}</TableCell>
-                      <TableCell>
-                        {asset.manufacturer} {asset.model_name}
-                      </TableCell>
-                      <TableCell>
-                        {asset.employee ? (
-                          <span className="text-sm">{asset.employee.name}</span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">Unassigned</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={asset.status}
-                          onValueChange={(value) => handleStatusChange(asset.id, value)}
-                        >
-                          <SelectTrigger className="w-[160px] h-8">
-                            <Badge
-                              className={getStatusColor(asset.status)}
-                              variant="outline"
-                            >
-                              {asset.status}
-                            </Badge>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ASSET_STATUSES.map((status) => (
-                              <SelectItem 
-                                key={status} 
-                                value={status}
-                                disabled={status === "Deployed"}
-                              >
-                                {status}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {formatDate(asset.warranty_expiry_date ?? null)}
-                          {asset.is_warranty_active === false && asset.warranty_expiry_date && (
-                            <Badge variant="destructive" className="text-xs">Expired</Badge>
+            <div className="h-full overflow-auto rounded-md border">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  <TableRow>
+                    <TableHead>Asset Tag</TableHead>
+                    <TableHead>Serial Number</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Warranty Expiry</TableHead>
+                    <TableHead className="w-[150px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {assets.length > 0 ? (
+                    assets.map((asset) => (
+                      <TableRow key={asset.id}>
+                        <TableCell className="font-semibold">{asset.asset_tag}</TableCell>
+                        <TableCell className="font-mono text-sm">{asset.serial_number}</TableCell>
+                        <TableCell>{getCategoryName(asset.category_id)}</TableCell>
+                        <TableCell>
+                          {asset.manufacturer} {asset.model_name}
+                        </TableCell>
+                        <TableCell>
+                          {asset.employee ? (
+                            <span className="text-sm">{asset.employee.name}</span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Unassigned</span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openProfileDialog(asset)}
-                            title="View Profile"
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={asset.status}
+                            onValueChange={(value) => handleStatusChange(asset.id, value)}
                           >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openAssignDialog(asset)}
-                            title={asset.employee_id ? "Change Assignment" : "Assign to Employee"}
-                          >
-                            <UserPlus className="h-4 w-4" />
-                          </Button>
-                          {asset.employee_id && (
+                            <SelectTrigger className="w-[160px] h-8">
+                              <Badge
+                                className={getStatusColor(asset.status)}
+                                variant="outline"
+                              >
+                                {asset.status}
+                              </Badge>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ASSET_STATUSES.map((status) => (
+                                <SelectItem 
+                                  key={status} 
+                                  value={status}
+                                  disabled={status === "Deployed"}
+                                >
+                                  {status}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {formatDate(asset.warranty_expiry_date ?? null)}
+                            {asset.is_warranty_active === false && asset.warranty_expiry_date && (
+                              <Badge variant="destructive" className="text-xs">Expired</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleUnassign(asset.id)}
-                              title="Unassign"
+                              onClick={() => openProfileDialog(asset)}
+                              title="View Profile"
                             >
-                              <Unlink className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteAsset(asset.id)}
-                            className="text-destructive hover:text-destructive"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openAssignDialog(asset)}
+                              title={asset.employee_id ? "Change Assignment" : "Assign to Employee"}
+                            >
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                            {asset.employee_id && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleUnassign(asset.id)}
+                                title="Unassign"
+                              >
+                                <Unlink className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteAsset(asset.id)}
+                              className="text-destructive hover:text-destructive"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <div className="text-muted-foreground">
+                          No assets found. Click "Add New Asset" to create one.
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      <div className="text-muted-foreground">
-                        No assets found. Click "Add New Asset" to create one.
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

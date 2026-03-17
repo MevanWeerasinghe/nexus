@@ -1,8 +1,33 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 from app.schemas.supplier import SupplierResponse
+
+
+class ComponentWarrantyBase(BaseModel):
+    """Base schema for ComponentWarranty."""
+    provider_name: str = Field(..., min_length=1, max_length=200)
+    duration_months: int = Field(..., ge=1)
+    start_date: date
+    terms_conditions: Optional[str] = None
+
+
+class ComponentWarrantyCreate(ComponentWarrantyBase):
+    """Schema for creating component warranty."""
+    pass
+
+
+class ComponentWarrantyResponse(ComponentWarrantyBase):
+    """Schema for component warranty response."""
+    id: int
+    component_id: int
+    end_date: date
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 
 class ComponentBase(BaseModel):
@@ -42,6 +67,7 @@ class ComponentResponse(ComponentBase):
     created_at: datetime
     updated_at: datetime
     supplier: Optional[SupplierResponse] = None
+    warranty: Optional[ComponentWarrantyResponse] = None
     
     class Config:
         from_attributes = True

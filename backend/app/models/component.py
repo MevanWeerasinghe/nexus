@@ -44,6 +44,7 @@ class Component(Base):
     # Relationships
     supplier = relationship("Supplier", back_populates="components")
     installation_history = relationship("AssetComponentHistory", back_populates="component")
+    warranty = relationship("ComponentWarranty", back_populates="component", uselist=False, cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Component(id={self.id}, name='{self.name}', status='{self.status}')>"

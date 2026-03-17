@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from app.database import get_db
 from app.models.component import Component, AssetComponentHistory, ComponentStatus
+from app.models.component_warranty import ComponentWarranty
 from app.models.asset import Asset
 from app.models.user import User
 from app.schemas.component import (
     ComponentCreate, ComponentUpdate, ComponentResponse,
-    InstallComponentRequest, AssetComponentHistoryResponse, RemoveComponentRequest
+    InstallComponentRequest, AssetComponentHistoryResponse, RemoveComponentRequest,
+    ComponentWarrantyCreate, ComponentWarrantyResponse
 )
 from app.dependencies import get_current_user
 
@@ -183,3 +185,151 @@ def get_component_history(
     ).order_by(AssetComponentHistory.installed_date.desc()).all()
     
     return history
+
+
+# ============== Component Warranty ==============
+
+@router.post("/{component_id}/warranty", response_model=ComponentWarrantyResponse, status_code=status.HTTP_201_CREATED)
+def add_component_warranty(
+    component_id: int,
+    warranty_data: ComponentWarrantyCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Add warranty to a component."""
+    component = db.query(Component).filter(Component.id == component_id).first()
+    
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component not found"
+        )
+    
+    # Check if warranty already exists
+    existing_warranty = db.query(ComponentWarranty).filter(
+        ComponentWarranty.component_id == component_id
+    ).first()
+    
+    if existing_warranty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Component already has a warranty. Use PUT to update it."
+        )
+    
+    # Calculate end_date
+    end_date = warranty_data.start_date + timedelta(days=warranty_data.duration_months * 30)
+    
+    db_warranty = ComponentWarranty(
+        component_id=component_id,
+        provider_name=warranty_data.provider_name,
+        duration_months=warranty_data.duration_months,
+        start_date=warranty_data.start_date,
+        end_date=end_date,
+        terms_conditions=warranty_data.terms_conditions
+    )
+    
+    db.add(db_warranty)
+    db.commit()
+    db.refresh(db_warranty)
+    
+    return db_warranty
+
+
+@router.put("/{component_id}/warranty", response_model=ComponentWarrantyResponse)
+def update_component_warranty(
+    component_id: int,
+    warranty_data: ComponentWarrantyCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update warranty for a component."""
+    component = db.query(Component).filter(Component.id == component_id).first()
+    
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component not found"
+        )
+    
+    warranty = db.query(ComponentWarranty).filter(
+        ComponentWarranty.component_id == component_id
+    ).first()
+    
+    if not warranty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component warranty not found"
+        )
+    
+    # Calculate end_date
+    end_date = warranty_data.start_date + timedelta(days=warranty_data.duration_months * 30)
+    
+    warranty.provider_name = warranty_data.provider_name
+    warranty.duration_months = warranty_data.duration_months
+    warranty.start_date = warranty_data.start_date
+    warranty.end_date = end_date
+    warranty.terms_conditions = warranty_data.terms_conditions
+    
+    db.commit()
+    db.refresh(warranty)
+    
+    return warranty
+
+
+@router.delete("/{component_id}/warranty", status_code=status.HTTP_204_NO_CONTENT)
+def delete_component_warranty(
+    component_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete warranty from a component."""
+    component = db.query(Component).filter(Component.id == component_id).first()
+    
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component not found"
+        )
+    
+    warranty = db.query(ComponentWarranty).filter(
+        ComponentWarranty.component_id == component_id
+    ).first()
+    
+    if not warranty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component warranty not found"
+        )
+    
+    db.delete(warranty)
+    db.commit()
+    
+    return None
+
+
+@router.get("/{component_id}/warranty", response_model=ComponentWarrantyResponse)
+def get_component_warranty(
+    component_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get warranty for a component."""
+    component = db.query(Component).filter(Component.id == component_id).first()
+    
+    if not component:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component not found"
+        )
+    
+    warranty = db.query(ComponentWarranty).filter(
+        ComponentWarranty.component_id == component_id
+    ).first()
+    
+    if not warranty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Component warranty not found"
+        )
+    
+    return warranty

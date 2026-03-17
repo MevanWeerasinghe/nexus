@@ -103,6 +103,27 @@ export interface WarrantyCreate {
   terms_conditions?: string;
 }
 
+// ============== Component Warranty Types ==============
+
+export interface ComponentWarranty {
+  id: number;
+  component_id: number;
+  provider_name: string;
+  duration_months: number;
+  start_date: string;
+  end_date: string;
+  terms_conditions?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ComponentWarrantyCreate {
+  provider_name: string;
+  duration_months: number;
+  start_date: string;
+  terms_conditions?: string;
+}
+
 // ============== Component Types ==============
 
 export interface Component {
@@ -119,6 +140,7 @@ export interface Component {
   created_at: string;
   updated_at: string;
   supplier?: Supplier;
+  warranty?: ComponentWarranty;
 }
 
 export interface ComponentCreate {
@@ -518,6 +540,39 @@ export async function updateComponent(id: number, data: ComponentUpdate): Promis
 
 export async function deleteComponent(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/components/${id}`);
+}
+
+// ============== Component Warranty Functions ==============
+
+export async function addComponentWarranty(
+  componentId: number,
+  data: ComponentWarrantyCreate
+): Promise<ComponentWarranty> {
+  const response = await apiClient.post<ComponentWarranty>(
+    `/api/v1/components/${componentId}/warranty`,
+    data
+  );
+  return response.data;
+}
+
+export async function updateComponentWarranty(
+  componentId: number,
+  data: ComponentWarrantyCreate
+): Promise<ComponentWarranty> {
+  const response = await apiClient.put<ComponentWarranty>(
+    `/api/v1/components/${componentId}/warranty`,
+    data
+  );
+  return response.data;
+}
+
+export async function deleteComponentWarranty(componentId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/components/${componentId}/warranty`);
+}
+
+export async function getComponentWarranty(componentId: number): Promise<ComponentWarranty> {
+  const response = await apiClient.get<ComponentWarranty>(`/api/v1/components/${componentId}/warranty`);
+  return response.data;
 }
 
 // ============== Asset Component Functions ==============
