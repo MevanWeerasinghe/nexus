@@ -517,7 +517,7 @@ export default function ComponentsPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Purchase Price</Label>
+                        <Label className="text-xs">Purchase Price (Rs)</Label>
                         <Input
                           className="h-9"
                           type="number"
@@ -777,7 +777,7 @@ export default function ComponentsPage() {
                     <TableHead>Category</TableHead>
                     <TableHead>Serial Number</TableHead>
                     <TableHead>Supplier</TableHead>
-                    <TableHead>Price</TableHead>
+                    <TableHead>Price (Rs)</TableHead>
                     <TableHead>Warranty</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -940,7 +940,7 @@ export default function ComponentsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-purchase_price">Purchase Price</Label>
+                  <Label htmlFor="edit-purchase_price">Purchase Price (Rs)</Label>
                   <Input
                     id="edit-purchase_price"
                     type="number"

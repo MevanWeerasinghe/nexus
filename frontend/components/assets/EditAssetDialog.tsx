@@ -135,7 +135,7 @@ export default function EditAssetDialog({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit_purchase_price" className="text-xs uppercase tracking-wide text-muted-foreground">Purchase Price</Label>
+                  <Label htmlFor="edit_purchase_price" className="text-xs uppercase tracking-wide text-muted-foreground">Purchase Price (Rs)</Label>
                   <Input
                     id="edit_purchase_price"
                     type="number"

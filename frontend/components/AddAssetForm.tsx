@@ -302,7 +302,7 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                   name="purchase_price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs">Price ($)</FormLabel>
+                      <FormLabel className="text-xs">Price (Rs)</FormLabel>
                       <FormControl>
                         <Input type="number" step="0.01" placeholder="0.00" className="h-9" {...field} />
                       </FormControl>

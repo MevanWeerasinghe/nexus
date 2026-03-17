@@ -248,6 +248,27 @@ export interface AssetFilters {
   search?: string;
 }
 
+export interface AssetReportFields {
+  include_serial_number: boolean;
+  include_category: boolean;
+  include_model: boolean;
+  include_supplier: boolean;
+  include_assignee: boolean;
+  include_purchase_date: boolean;
+  include_purchase_price: boolean;
+  include_warranty: boolean;
+  include_location: boolean;
+  include_notes: boolean;
+}
+
+export interface AssetReportRequest {
+  start_date?: string;
+  end_date?: string;
+  status: string;
+  report_title?: string;
+  fields: AssetReportFields;
+}
+
 export interface AssignmentHistory {
   id: number;
   asset_id: number;
@@ -386,6 +407,13 @@ export async function updateAsset(id: number, data: AssetUpdate): Promise<Asset>
 
 export async function deleteAsset(id: number): Promise<void> {
   await apiClient.delete(`/api/v1/assets/${id}`);
+}
+
+export async function generateAssetPdfReport(payload: AssetReportRequest): Promise<Blob> {
+  const response = await apiClient.post('/api/v1/assets/reports/pdf', payload, {
+    responseType: 'blob',
+  });
+  return response.data as Blob;
 }
 
 // ============== Dashboard Functions ==============

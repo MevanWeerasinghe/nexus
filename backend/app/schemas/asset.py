@@ -174,6 +174,31 @@ class AssetListResponse(BaseModel):
     total_pages: int
 
 
+# ============== Asset Report Schemas ==============
+
+class AssetReportFields(BaseModel):
+    """Configurable columns/sections for asset PDF reports."""
+    include_serial_number: bool = True
+    include_category: bool = True
+    include_model: bool = True
+    include_supplier: bool = True
+    include_assignee: bool = True
+    include_purchase_date: bool = True
+    include_purchase_price: bool = True
+    include_warranty: bool = True
+    include_location: bool = True
+    include_notes: bool = False
+
+
+class AssetReportRequest(BaseModel):
+    """Payload for generating an asset PDF report."""
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    status: str = Field("all", description="Asset status filter or 'all'")
+    report_title: Optional[str] = Field(None, max_length=120)
+    fields: AssetReportFields = Field(default_factory=AssetReportFields)
+
+
 # ============== Assignment History Schemas ==============
 
 class AssignmentHistoryResponse(BaseModel):

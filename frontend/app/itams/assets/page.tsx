@@ -29,13 +29,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Eye } from "lucide-react";
+import { Plus, Search, RefreshCw, Trash2, UserPlus, Unlink, Eye, FileDown } from "lucide-react";
 import AddAssetForm from "@/components/AddAssetForm";
 import AssignAssetDialog from "@/components/assets/AssignAssetDialog";
 import AssetProfileDialog from "@/components/assets/AssetProfileDialog";
 import AssignmentHistoryDialog from "@/components/assets/AssignmentHistoryDialog";
 import EditAssetDialog, { EditAssetFormData } from "@/components/assets/EditAssetDialog";
 import InstallComponentDialog from "@/components/assets/InstallComponentDialog";
+import GenerateAssetReportDialog from "@/components/assets/GenerateAssetReportDialog";
 import { 
   getAssets, 
   getCategories,
@@ -49,10 +50,12 @@ import {
   getAvailableComponents,
   installComponent,
   removeComponent,
+  generateAssetPdfReport,
   Asset, 
   Category,
   Employee, 
   AssetCreate,
+  AssetReportRequest,
   AssignmentHistory,
   AssetComponentHistory,
   Component
@@ -82,6 +85,8 @@ export default function AssetsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -445,6 +450,43 @@ export default function AssetsPage() {
     setEditForm((current) => ({ ...current, [field]: value }));
   };
 
+  const handleGenerateReport = async (payload: AssetReportRequest): Promise<Blob | null> => {
+    try {
+      setGeneratingReport(true);
+      const pdfBlob = await generateAssetPdfReport(payload);
+      return pdfBlob;
+    } catch (err: any) {
+      console.error("Failed to generate asset report:", err);
+      let errorMessage = "Failed to generate PDF report";
+
+      const responseData = err?.response?.data;
+      if (responseData instanceof Blob) {
+        try {
+          const text = await responseData.text();
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed?.detail) {
+              errorMessage = parsed.detail;
+            }
+          } catch {
+            if (text && text.trim()) {
+              errorMessage = text.slice(0, 400);
+            }
+          }
+        } catch {
+          // Keep fallback message when blob cannot be parsed.
+        }
+      } else if (responseData?.detail) {
+        errorMessage = responseData.detail;
+      }
+
+      setError(errorMessage);
+      return null;
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   return (
     <div className="h-[calc(100dvh-1rem)] p-6 flex flex-col gap-6 overflow-hidden">
       {/* Header */}
@@ -454,6 +496,10 @@ export default function AssetsPage() {
           <p className="text-muted-foreground">Manage your IT assets</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setReportDialogOpen(true)} className="gap-2">
+            <FileDown className="h-4 w-4" />
+            Generate Report
+          </Button>
           <Button variant="outline" onClick={fetchAssets} className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Refresh
@@ -724,6 +770,13 @@ export default function AssetsPage() {
         onSelectedEmployeeChange={setSelectedEmployeeId}
         assigning={assigning}
         onAssign={handleAssign}
+      />
+
+      <GenerateAssetReportDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        onGenerate={handleGenerateReport}
+        generating={generatingReport}
       />
     </div>
   );
