@@ -269,6 +269,22 @@ export interface AssetReportRequest {
   fields: AssetReportFields;
 }
 
+export interface AssetProfileReportFields {
+  include_asset_overview: boolean;
+  include_financial_details: boolean;
+  include_warranty_details: boolean;
+  include_assignment_snapshot: boolean;
+  include_assignment_history: boolean;
+  include_component_history: boolean;
+  include_component_specs: boolean;
+  include_notes: boolean;
+}
+
+export interface AssetProfileReportRequest {
+  report_title?: string;
+  fields: AssetProfileReportFields;
+}
+
 export interface AssignmentHistory {
   id: number;
   asset_id: number;
@@ -411,6 +427,16 @@ export async function deleteAsset(id: number): Promise<void> {
 
 export async function generateAssetPdfReport(payload: AssetReportRequest): Promise<Blob> {
   const response = await apiClient.post('/api/v1/assets/reports/pdf', payload, {
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+}
+
+export async function generateAssetProfilePdfReport(
+  assetId: number,
+  payload: AssetProfileReportRequest
+): Promise<Blob> {
+  const response = await apiClient.post(`/api/v1/assets/${assetId}/reports/pdf`, payload, {
     responseType: 'blob',
   });
   return response.data as Blob;

@@ -37,6 +37,7 @@ import AssignmentHistoryDialog from "@/components/assets/AssignmentHistoryDialog
 import EditAssetDialog, { EditAssetFormData } from "@/components/assets/EditAssetDialog";
 import InstallComponentDialog from "@/components/assets/InstallComponentDialog";
 import GenerateAssetReportDialog from "@/components/assets/GenerateAssetReportDialog";
+import GenerateAssetProfileReportDialog from "@/components/assets/GenerateAssetProfileReportDialog";
 import { 
   getAssets, 
   getCategories,
@@ -51,11 +52,13 @@ import {
   installComponent,
   removeComponent,
   generateAssetPdfReport,
+  generateAssetProfilePdfReport,
   Asset, 
   Category,
   Employee, 
   AssetCreate,
   AssetReportRequest,
+  AssetProfileReportRequest,
   AssignmentHistory,
   AssetComponentHistory,
   Component
@@ -87,6 +90,8 @@ export default function AssetsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [profileReportDialogOpen, setProfileReportDialogOpen] = useState(false);
+  const [generatingProfileReport, setGeneratingProfileReport] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -356,6 +361,11 @@ export default function AssetsPage() {
     }
   };
 
+  const handleOpenProfileReportDialog = () => {
+    if (!profileAsset) return;
+    setProfileReportDialogOpen(true);
+  };
+
   const handleProfileUnassign = async () => {
     if (!profileAsset) return;
     if (!confirm("Unassign this asset from the current employee?")) return;
@@ -484,6 +494,48 @@ export default function AssetsPage() {
       return null;
     } finally {
       setGeneratingReport(false);
+    }
+  };
+
+  const handleGenerateProfileReport = async (payload: AssetProfileReportRequest): Promise<Blob | null> => {
+    if (!profileAsset) {
+      setError("No asset selected for profile report");
+      return null;
+    }
+
+    try {
+      setGeneratingProfileReport(true);
+      const pdfBlob = await generateAssetProfilePdfReport(profileAsset.id, payload);
+      return pdfBlob;
+    } catch (err: any) {
+      console.error("Failed to generate asset profile report:", err);
+      let errorMessage = "Failed to generate asset profile PDF report";
+
+      const responseData = err?.response?.data;
+      if (responseData instanceof Blob) {
+        try {
+          const text = await responseData.text();
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed?.detail) {
+              errorMessage = parsed.detail;
+            }
+          } catch {
+            if (text && text.trim()) {
+              errorMessage = text.slice(0, 400);
+            }
+          }
+        } catch {
+          // Keep fallback message when blob cannot be parsed.
+        }
+      } else if (responseData?.detail) {
+        errorMessage = responseData.detail;
+      }
+
+      setError(errorMessage);
+      return null;
+    } finally {
+      setGeneratingProfileReport(false);
     }
   };
 
@@ -727,6 +779,15 @@ export default function AssetsPage() {
         onOpenInstallDialog={openInstallComponentDialog}
         onRemoveComponent={handleRemoveComponent}
         onOpenHistoryDialog={openHistoryDialog}
+        onOpenGenerateReportDialog={handleOpenProfileReportDialog}
+      />
+
+      <GenerateAssetProfileReportDialog
+        open={profileReportDialogOpen}
+        onOpenChange={setProfileReportDialogOpen}
+        asset={profileAsset}
+        onGenerate={handleGenerateProfileReport}
+        generating={generatingProfileReport}
       />
 
       <InstallComponentDialog

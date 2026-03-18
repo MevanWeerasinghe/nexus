@@ -4,6 +4,7 @@ import {
   Calendar,
   Cpu,
   DollarSign,
+  FileDown,
   History,
   Info,
   MapPin,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -46,6 +47,7 @@ interface AssetProfileDialogProps {
   onOpenInstallDialog: () => void;
   onRemoveComponent: (historyId: number, reason: string) => void;
   onOpenHistoryDialog: () => void;
+  onOpenGenerateReportDialog: () => void;
 }
 
 export default function AssetProfileDialog({
@@ -66,12 +68,19 @@ export default function AssetProfileDialog({
   onOpenInstallDialog,
   onRemoveComponent,
   onOpenHistoryDialog,
+  onOpenGenerateReportDialog,
 }: AssetProfileDialogProps) {
   const activeComponents = componentHistory.filter((item) => !item.removed_date);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[96vw] max-w-6xl p-0 gap-0 overflow-hidden">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{profileAsset ? `Asset Profile - ${profileAsset.asset_tag}` : "Asset Profile"}</DialogTitle>
+          <DialogDescription>
+            View asset details, assignment timeline, warranty information, and installed hardware components.
+          </DialogDescription>
+        </DialogHeader>
         {profileAsset && (
           <>
             <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-white p-6">
@@ -105,6 +114,10 @@ export default function AssetProfileDialog({
               <Button variant="outline" size="sm" onClick={onAssign} className="gap-2">
                 <UserPlus className="h-4 w-4" />
                 {profileAsset.employee_id ? "Reassign" : "Assign"}
+              </Button>
+              <Button variant="outline" size="sm" onClick={onOpenGenerateReportDialog} className="gap-2">
+                <FileDown className="h-4 w-4" />
+                Generate Report
               </Button>
               {profileAsset.employee_id && (
                 <Button variant="outline" size="sm" onClick={onUnassign} className="gap-2">

@@ -199,6 +199,24 @@ class AssetReportRequest(BaseModel):
     fields: AssetReportFields = Field(default_factory=AssetReportFields)
 
 
+class AssetProfileReportFields(BaseModel):
+    """Configurable sections for single-asset lifecycle PDF reports."""
+    include_asset_overview: bool = True
+    include_financial_details: bool = True
+    include_warranty_details: bool = True
+    include_assignment_snapshot: bool = True
+    include_assignment_history: bool = True
+    include_component_history: bool = True
+    include_component_specs: bool = False
+    include_notes: bool = True
+
+
+class AssetProfileReportRequest(BaseModel):
+    """Payload for generating a single asset lifecycle PDF report."""
+    report_title: Optional[str] = Field(None, max_length=120)
+    fields: AssetProfileReportFields = Field(default_factory=AssetProfileReportFields)
+
+
 # ============== Assignment History Schemas ==============
 
 class AssignmentHistoryResponse(BaseModel):
