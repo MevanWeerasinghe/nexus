@@ -18,3 +18,7 @@ frontend/.env.local
 # OS
 .DS_Store
 Thumbs.db
+
+# Server-only local folders
+nexusbkps/
+nssm-2.24/
