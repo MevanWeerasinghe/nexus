@@ -1,9 +1,9 @@
 "use client";
 
 import {
+  Banknote,
   Calendar,
   Cpu,
-  DollarSign,
   FileDown,
   History,
   Info,
@@ -202,11 +202,11 @@ export default function AssetProfileDialog({
                     </div>
                     <div className="rounded-xl border bg-card p-4 space-y-1 shadow-sm">
                       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        <DollarSign className="h-3 w-3" />
-                        Price (Rs)
+                        <Banknote className="h-3 w-3" />
+                        Price (LKR)
                       </div>
                       <p className="font-medium text-sm">
-                        {profileAsset.purchase_price ? `₹${profileAsset.purchase_price.toLocaleString()}` : "-"}
+                        {profileAsset.purchase_price ? `LKR ${profileAsset.purchase_price.toLocaleString()}` : "-"}
                       </p>
                     </div>
                   </div>

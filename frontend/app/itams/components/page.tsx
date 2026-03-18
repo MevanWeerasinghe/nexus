@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Cpu, Pencil, Trash2, Search, Package, DollarSign, Shield, FileText } from "lucide-react";
+import { Plus, Cpu, Pencil, Trash2, Search, Package, Banknote, Shield, FileText } from "lucide-react";
 import { 
   getComponents, 
   createComponent, 
@@ -517,7 +517,7 @@ export default function ComponentsPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Purchase Price (Rs)</Label>
+                        <Label className="text-xs">Purchase Price (LKR)</Label>
                         <Input
                           className="h-9"
                           type="number"
@@ -777,7 +777,7 @@ export default function ComponentsPage() {
                     <TableHead>Category</TableHead>
                     <TableHead>Serial Number</TableHead>
                     <TableHead>Supplier</TableHead>
-                    <TableHead>Price (Rs)</TableHead>
+                    <TableHead>Price (LKR)</TableHead>
                     <TableHead>Warranty</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -799,8 +799,8 @@ export default function ComponentsPage() {
                       <TableCell>
                         {component.purchase_price ? (
                           <span className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3 text-muted-foreground" />
-                            {component.purchase_price.toFixed(2)}
+                            <Banknote className="h-3 w-3 text-muted-foreground" />
+                            {`LKR ${component.purchase_price.toFixed(2)}`}
                           </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
@@ -940,7 +940,7 @@ export default function ComponentsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-purchase_price">Purchase Price (Rs)</Label>
+                  <Label htmlFor="edit-purchase_price">Purchase Price (LKR)</Label>
                   <Input
                     id="edit-purchase_price"
                     type="number"

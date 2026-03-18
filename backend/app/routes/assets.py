@@ -90,7 +90,7 @@ def _generate_assets_pdf_with_reportlab(
             str(summary.get("total_assets", 0)),
             str(summary.get("assigned_assets", 0)),
             str(summary.get("unassigned_assets", 0)),
-            f"Rs {summary.get('total_value', 0):.2f}",
+            f"LKR {summary.get('total_value', 0):.2f}",
             str(summary.get("status_counts", {}).get("Available", 0)),
             str(summary.get("status_counts", {}).get("Deployed", 0)),
             str(summary.get("status_counts", {}).get("In Maintenance", 0)),
@@ -128,7 +128,7 @@ def _generate_assets_pdf_with_reportlab(
     if fields.include_purchase_date:
         headers.append("Purchase Date")
     if fields.include_purchase_price:
-        headers.append("Price (Rs)")
+        headers.append("Price (LKR)")
     if fields.include_warranty:
         headers.append("Warranty")
     if fields.include_location:
@@ -153,7 +153,7 @@ def _generate_assets_pdf_with_reportlab(
         if fields.include_purchase_date:
             row.append(asset.purchase_date.strftime("%Y-%m-%d") if asset.purchase_date else "-")
         if fields.include_purchase_price:
-            row.append(f"₹{asset.purchase_price:.2f}" if asset.purchase_price else "-")
+            row.append(f"LKR {asset.purchase_price:.2f}" if asset.purchase_price else "-")
         if fields.include_warranty:
             row.append(asset.warranty_expiry_date.strftime("%Y-%m-%d") if asset.warranty_expiry_date else "-")
         if fields.include_location:
@@ -213,7 +213,7 @@ def _generate_asset_profile_pdf_with_reportlab(
     def _fmt_money(value):
         if value is None:
             return "-"
-        return f"₹{value:.2f}"
+        return f"LKR {value:.2f}"
 
     def _is_warranty_active() -> bool:
         if asset.warranty and asset.warranty.end_date:
