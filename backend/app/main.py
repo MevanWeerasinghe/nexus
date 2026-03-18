@@ -9,6 +9,7 @@ from app.models.employee import Employee
 from app.models.supplier import Supplier
 from app.models.warranty import Warranty
 from app.models.component import Component, AssetComponentHistory
+from app.models.component_warranty import ComponentWarranty
 
 # Create database tables - ensure all models are imported first
 print("Creating database tables...")
