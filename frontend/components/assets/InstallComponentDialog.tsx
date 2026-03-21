@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Component } from "@/lib/api-service";
+import { Component } from "@/modules/itam/api";
 
 interface InstallComponentDialogProps {
   open: boolean;

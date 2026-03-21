@@ -62,7 +62,7 @@ import {
   AssignmentHistory,
   AssetComponentHistory,
   Component
-} from "@/lib/api-service";
+} from "@/modules/itam/api";
 import { isAuthenticated } from "@/lib/auth";
 
 const ASSET_STATUSES = ["Available", "Deployed", "In Maintenance", "Retired", "Disposed"] as const;

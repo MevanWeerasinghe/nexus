@@ -3,7 +3,7 @@
 import { Clock, History, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { AssignmentHistory } from "@/lib/api-service";
+import { AssignmentHistory } from "@/modules/itam/api";
 
 interface AssignmentHistoryDialogProps {
   open: boolean;

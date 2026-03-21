@@ -7,6 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,7 +32,22 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, Users, Eye, Trash2 } from "lucide-react";
-import { getEmployees, createEmployee, deleteEmployee, Employee } from "@/lib/api-service";
+import { getEmployees, createEmployee, deleteEmployee, Employee } from "@/modules/itam/api";
+
+const DEPARTMENTS = [
+  "Admin",
+  "Directors",
+  "IT",
+  "Finance",
+  "Airfreight",
+  "Ocean freight",
+  "Sales",
+  "Import",
+  "Wharf",
+  "ACV",
+  "CFS Welisara",
+  "CFS GTL",
+] as const;
 
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -38,7 +60,13 @@ export default function EmployeesPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [formError, setFormError] = useState<string | null>(null);
+
+  const filteredEmployees =
+    departmentFilter === "all"
+      ? employees
+      : employees.filter((employee) => employee.department === departmentFilter);
 
   const fetchEmployees = async () => {
     try {
@@ -61,8 +89,8 @@ export default function EmployeesPage() {
     e.preventDefault();
     setFormError(null);
     
-    if (!name.trim() || !email.trim()) {
-      setFormError("Name and email are required");
+    if (!name.trim() || !email.trim() || !department) {
+      setFormError("Name, email and department are required");
       return;
     }
 
@@ -71,7 +99,7 @@ export default function EmployeesPage() {
       await createEmployee({
         name: name.trim(),
         email: email.trim(),
-        department: department.trim() || undefined,
+        department,
       });
       
       // Reset form and close dialog
@@ -162,13 +190,19 @@ export default function EmployeesPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    placeholder="IT Department"
-                  />
+                  <Label htmlFor="department">Department *</Label>
+                  <Select value={department} onValueChange={setDepartment}>
+                    <SelectTrigger id="department">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <DialogFooter>
@@ -194,18 +228,39 @@ export default function EmployeesPage() {
       {/* Employees Table */}
       <Card className="flex-1 min-h-0 flex flex-col">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            All Employees ({employees.length})
-          </CardTitle>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              All Employees ({filteredEmployees.length})
+            </CardTitle>
+            <div className="w-full md:w-64">
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  {DEPARTMENTS.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="flex-1 min-h-0 overflow-hidden">
-          {employees.length === 0 ? (
+          {filteredEmployees.length === 0 ? (
             <div className="h-full text-center py-10 text-muted-foreground flex items-center justify-center">
               <div>
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No employees found</p>
-              <p className="text-sm">Click "Add Employee" to create one</p>
+              <p className="text-sm">
+                {departmentFilter === "all"
+                  ? 'Click "Add Employee" to create one'
+                  : "Try a different department filter"}
+              </p>
               </div>
             </div>
           ) : (
@@ -220,7 +275,7 @@ export default function EmployeesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employees.map((employee) => (
+                  {filteredEmployees.map((employee) => (
                     <TableRow key={employee.id}>
                       <TableCell className="font-medium">{employee.name}</TableCell>
                       <TableCell>{employee.email}</TableCell>

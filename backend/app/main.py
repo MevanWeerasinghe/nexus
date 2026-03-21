@@ -2,18 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.config import settings
-from app.routes import auth, assets, employees, suppliers, components
-from app.models.user import User
-from app.models.asset import Asset, Category
-from app.models.employee import Employee
-from app.models.supplier import Supplier
-from app.models.warranty import Warranty
-from app.models.component import Component, AssetComponentHistory
-from app.models.component_warranty import ComponentWarranty
+from app.modules.registry import get_modules, import_all_models, include_all_routers
+
+modules = get_modules()
 
 # Create database tables - ensure all models are imported first
 print("Creating database tables...")
 try:
+    import_all_models(modules)
     Base.metadata.create_all(bind=engine)
     print("Database tables created successfully")
 except Exception as e:
@@ -35,12 +31,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routes
-app.include_router(auth.router)
-app.include_router(assets.router)
-app.include_router(employees.router)
-app.include_router(suppliers.router)
-app.include_router(components.router)
+# Include routes from all enabled modules
+include_all_routers(app, modules)
 
 
 @app.get("/")

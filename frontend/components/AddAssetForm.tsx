@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Category, AssetCreate, Supplier, getSuppliers } from "@/lib/api-service";
+import { Category, AssetCreate, Supplier, getSuppliers } from "@/modules/itam/api";
 import { Loader2, Shield, Package, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 

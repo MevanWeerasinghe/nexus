@@ -32,7 +32,7 @@ import {
   deleteSupplier, 
   Supplier,
   SupplierCreate 
-} from "@/lib/api-service";
+} from "@/modules/itam/api";
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);

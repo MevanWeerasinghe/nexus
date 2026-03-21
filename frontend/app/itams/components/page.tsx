@@ -44,7 +44,7 @@ import {
   Component,
   ComponentCreate,
   Supplier 
-} from "@/lib/api-service";
+} from "@/modules/itam/api";
 import { Switch } from "@/components/ui/switch";
 
 // Common component categories

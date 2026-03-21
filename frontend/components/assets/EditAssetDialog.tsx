@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Asset, Category } from "@/lib/api-service";
+import { Asset, Category } from "@/modules/itam/api";
 
 export interface EditAssetFormData {
   asset_tag: string;

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Shield, AlertCircle } from "lucide-react";
-import { Supplier } from "@/lib/api-service";
+import { Supplier } from "@/modules/itam/api";
 
 export interface WarrantyData {
   provider_name: string;

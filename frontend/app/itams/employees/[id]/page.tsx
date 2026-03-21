@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, User, Mail, Building, Package, Unlink } from "lucide-react";
-import { getEmployee, getEmployeeAssets, assignAsset, Employee, Asset } from "@/lib/api-service";
+import { getEmployee, getEmployeeAssets, assignAsset, Employee, Asset } from "@/modules/itam/api";
 
 export default function EmployeeDetailsPage() {
   const params = useParams();

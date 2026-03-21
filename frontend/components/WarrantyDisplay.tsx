@@ -1,6 +1,6 @@
 "use client";
 
-import { ComponentWarranty } from "@/lib/api-service";
+import { ComponentWarranty } from "@/modules/itam/api";
 import {
   Table,
   TableBody,

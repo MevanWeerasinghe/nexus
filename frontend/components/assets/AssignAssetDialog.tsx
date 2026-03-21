@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Asset, Employee } from "@/lib/api-service";
+import { Asset, Employee } from "@/modules/itam/api";
 
 interface AssignAssetDialogProps {
   open: boolean;

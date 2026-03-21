@@ -15,7 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, FileText, Filter, RefreshCw, SlidersHorizontal } from "lucide-react";
-import { Asset, AssetProfileReportRequest } from "@/lib/api-service";
+import { Asset, AssetProfileReportRequest } from "@/modules/itam/api";
 
 interface GenerateAssetProfileReportDialogProps {
   open: boolean;

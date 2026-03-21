@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, Package, Monitor, Wrench, Archive } from "lucide-react";
-import { getDashboardMetrics, getExpiringWarranties, DashboardMetrics, WarrantyAlert } from "@/lib/api-service";
+import { getDashboardMetrics, getExpiringWarranties, DashboardMetrics, WarrantyAlert } from "@/modules/itam/api";
 import { isAuthenticated } from "@/lib/auth";
 
 export default function ITAMDashboard() {

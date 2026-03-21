@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Asset, AssetComponentHistory } from "@/lib/api-service";
+import { Asset, AssetComponentHistory } from "@/modules/itam/api";
 
 interface AssetProfileDialogProps {
   open: boolean;

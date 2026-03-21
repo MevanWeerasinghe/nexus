@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { loginUser } from "@/lib/api-service";
+import { loginUser } from "@/modules/auth/api";
 import { AlertCircle } from "lucide-react";
 
 export default function LoginPage() {

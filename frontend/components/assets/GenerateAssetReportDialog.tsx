@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Filter, SlidersHorizontal, Download, RefreshCw } from "lucide-react";
-import { AssetReportRequest } from "@/lib/api-service";
+import { AssetReportRequest } from "@/modules/itam/api";
 
 interface GenerateAssetReportDialogProps {
   open: boolean;

@@ -86,9 +86,12 @@ See [SETUP_AND_RUN_GUIDE.md](./SETUP_AND_RUN_GUIDE.md) for detailed setup instru
 ```
 project-root/
 ├── backend/          # FastAPI application
+│   └── app/modules/  # Modular monolith composition (auth, itam, future maintenance)
 ├── frontend/         # Next.js application
 └── SETUP_AND_RUN_GUIDE.md
 ```
+
+See [backend/MODULAR_MONOLITH.md](./backend/MODULAR_MONOLITH.md) for backend module composition details.
 
 ## License
 
