@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, User, Mail, Building, Package, Unlink } from "lucide-react";
+import { ArrowLeft, User, Mail, Building, Package, Unlink, Network } from "lucide-react";
 import { getEmployee, getEmployeeAssets, assignAsset, Employee, Asset } from "@/modules/itam/api";
 import UnassignReasonDialog from "@/components/assets/UnassignReasonDialog";
 
@@ -125,7 +125,7 @@ export default function EmployeeDetailsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="flex items-center gap-3">
               <User className="h-5 w-5 text-muted-foreground" />
               <div>
@@ -145,6 +145,13 @@ export default function EmployeeDetailsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Department</p>
                 <p className="font-medium">{employee.department || "Not specified"}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Network className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">IP Address</p>
+                <p className="font-medium">{employee.ip_address || "Not specified"}</p>
               </div>
             </div>
           </div>

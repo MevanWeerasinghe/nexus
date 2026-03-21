@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+import ipaddress
 
 from app.database import get_db
 from app.models.employee import Employee
@@ -11,6 +12,21 @@ from app.schemas.asset import AssetResponse
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/employees", tags=["employees"])
+
+
+def _normalize_ip(ip_value: str | None) -> str | None:
+    if ip_value is None:
+        return None
+    candidate = ip_value.strip()
+    if not candidate:
+        return None
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid IP address format"
+        )
 
 
 @router.get("/", response_model=List[EmployeeResponse])
@@ -53,8 +69,19 @@ def create_employee(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="An employee with this email already exists"
         )
-    
-    db_employee = Employee(**employee_data.model_dump())
+
+    normalized_ip = _normalize_ip(employee_data.ip_address)
+    if normalized_ip:
+        existing_ip = db.query(Employee).filter(Employee.ip_address == normalized_ip).first()
+        if existing_ip:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An employee with this IP address already exists"
+            )
+
+    payload = employee_data.model_dump()
+    payload["ip_address"] = normalized_ip
+    db_employee = Employee(**payload)
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)
@@ -84,9 +111,23 @@ def update_employee(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="An employee with this email already exists"
             )
+
+    normalized_ip = _normalize_ip(employee_data.ip_address) if employee_data.ip_address is not None else None
+    if employee_data.ip_address is not None and normalized_ip:
+        existing_ip = db.query(Employee).filter(
+            Employee.ip_address == normalized_ip,
+            Employee.id != employee_id,
+        ).first()
+        if existing_ip:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An employee with this IP address already exists"
+            )
     
     # Update only provided fields
     update_data = employee_data.model_dump(exclude_unset=True)
+    if "ip_address" in update_data:
+        update_data["ip_address"] = normalized_ip
     for field, value in update_data.items():
         setattr(employee, field, value)
     

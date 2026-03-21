@@ -57,6 +57,7 @@ export interface Employee {
   name: string;
   email: string;
   department?: string;
+  ip_address?: string;
   created_at: string;
   updated_at: string;
 }
@@ -472,12 +473,14 @@ export interface EmployeeCreate {
   name: string;
   email: string;
   department?: string;
+  ip_address?: string;
 }
 
 export interface EmployeeUpdate {
   name?: string;
   email?: string;
   department?: string;
+  ip_address?: string;
 }
 
 // ============== Employee Functions ==============

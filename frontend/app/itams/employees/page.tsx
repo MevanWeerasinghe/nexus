@@ -60,6 +60,7 @@ export default function EmployeesPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
+  const [ipAddress, setIpAddress] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -89,8 +90,8 @@ export default function EmployeesPage() {
     e.preventDefault();
     setFormError(null);
     
-    if (!name.trim() || !email.trim() || !department) {
-      setFormError("Name, email and department are required");
+    if (!name.trim() || !email.trim() || !department || !ipAddress.trim()) {
+      setFormError("Name, email, department and IP address are required");
       return;
     }
 
@@ -100,12 +101,14 @@ export default function EmployeesPage() {
         name: name.trim(),
         email: email.trim(),
         department,
+        ip_address: ipAddress.trim(),
       });
       
       // Reset form and close dialog
       setName("");
       setEmail("");
       setDepartment("");
+      setIpAddress("");
       setIsDialogOpen(false);
       
       // Refresh employee list
@@ -204,6 +207,16 @@ export default function EmployeesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="ipAddress">IP Address *</Label>
+                  <Input
+                    id="ipAddress"
+                    value={ipAddress}
+                    onChange={(e) => setIpAddress(e.target.value)}
+                    placeholder="192.168.1.10"
+                    required
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
@@ -271,6 +284,7 @@ export default function EmployeesPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Department</TableHead>
+                    <TableHead>IP Address</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -280,6 +294,7 @@ export default function EmployeesPage() {
                       <TableCell className="font-medium">{employee.name}</TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>{employee.department || "-"}</TableCell>
+                      <TableCell className="font-mono text-sm">{employee.ip_address || "-"}</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Link href={`/itams/employees/${employee.id}`}>
                           <Button variant="outline" size="sm">

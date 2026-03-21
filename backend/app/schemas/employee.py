@@ -10,6 +10,7 @@ class EmployeeBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(..., min_length=1, max_length=255)
     department: Optional[str] = Field(None, max_length=100)
+    ip_address: Optional[str] = Field(None, max_length=45)
 
 
 class EmployeeCreate(BaseModel):
@@ -17,6 +18,7 @@ class EmployeeCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(..., min_length=1, max_length=255)
     department: Optional[str] = Field(None, max_length=100)
+    ip_address: Optional[str] = Field(None, max_length=45)
 
 
 class EmployeeUpdate(BaseModel):
@@ -24,6 +26,7 @@ class EmployeeUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     email: Optional[str] = Field(None, min_length=1, max_length=255)
     department: Optional[str] = Field(None, max_length=100)
+    ip_address: Optional[str] = Field(None, max_length=45)
 
 
 class EmployeeResponse(BaseModel):
@@ -32,6 +35,7 @@ class EmployeeResponse(BaseModel):
     name: str
     email: str
     department: Optional[str] = None
+    ip_address: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     

@@ -18,6 +18,7 @@ class Employee(Base):
     name = Column(String(255), nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     department = Column(String(100), nullable=True)
+    ip_address = Column(String(45), nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     
