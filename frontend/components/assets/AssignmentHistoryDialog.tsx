@@ -70,6 +70,11 @@ export default function AssignmentHistoryDialog({
                         {record.unassigned_at && <> → {formatDate(record.unassigned_at)}</>}
                       </span>
                     </div>
+                    {record.unassign_reason && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Reason: {record.unassign_reason}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

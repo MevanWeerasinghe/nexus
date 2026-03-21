@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, computed_field
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Literal
 from datetime import date, datetime
 
 from app.schemas.warranty import WarrantyCreate, WarrantyResponse
@@ -41,6 +41,8 @@ class AssetBase(BaseModel):
     category_id: int
     manufacturer: str = Field(..., min_length=1, max_length=100)
     model_name: str = Field(..., min_length=1, max_length=100)
+    model_number: Optional[str] = Field(None, max_length=100)
+    usage_type: Literal["Office", "Personal"] = "Office"
     purchase_date: Optional[date] = None
     purchase_price: Optional[float] = Field(None, ge=0)
     warranty_months: Optional[int] = Field(12, ge=0)
@@ -58,6 +60,8 @@ class AssetCreate(BaseModel):
     supplier_id: Optional[int] = None
     manufacturer: str = Field(..., min_length=1, max_length=100)
     model_name: str = Field(..., min_length=1, max_length=100)
+    model_number: Optional[str] = Field(None, max_length=100)
+    usage_type: Literal["Office", "Personal"] = "Office"
     purchase_date: Optional[date] = None
     purchase_price: Optional[float] = Field(None, ge=0)
     warranty_months: Optional[int] = Field(12, ge=0)
@@ -77,6 +81,8 @@ class AssetUpdate(BaseModel):
     supplier_id: Optional[int] = None
     manufacturer: Optional[str] = Field(None, min_length=1, max_length=100)
     model_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    model_number: Optional[str] = Field(None, max_length=100)
+    usage_type: Optional[Literal["Office", "Personal"]] = None
     purchase_date: Optional[date] = None
     purchase_price: Optional[float] = Field(None, ge=0)
     warranty_months: Optional[int] = Field(None, ge=0)
@@ -89,6 +95,7 @@ class AssetUpdate(BaseModel):
 class AssetAssign(BaseModel):
     """Schema for assigning/unassigning an asset to an employee."""
     employee_id: Optional[int] = Field(None, description="Employee ID to assign. Set to null to unassign.")
+    unassign_reason: Optional[str] = Field(None, max_length=500, description="Required when unassigning an assigned asset.")
 
 
 class EmployeeInfo(BaseModel):
@@ -112,6 +119,8 @@ class AssetResponse(BaseModel):
     employee_id: Optional[int] = None
     manufacturer: str
     model_name: str
+    model_number: Optional[str] = None
+    usage_type: Literal["Office", "Personal"]
     purchase_date: Optional[date]
     purchase_price: Optional[float]
     warranty_months: Optional[int]
@@ -229,6 +238,7 @@ class AssignmentHistoryResponse(BaseModel):
     employee_department: Optional[str] = None
     assigned_at: datetime
     unassigned_at: Optional[datetime] = None
+    unassign_reason: Optional[str] = None
     
     class Config:
         from_attributes = True

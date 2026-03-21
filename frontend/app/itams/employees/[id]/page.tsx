@@ -17,6 +17,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, User, Mail, Building, Package, Unlink } from "lucide-react";
 import { getEmployee, getEmployeeAssets, assignAsset, Employee, Asset } from "@/modules/itam/api";
+import UnassignReasonDialog from "@/components/assets/UnassignReasonDialog";
 
 export default function EmployeeDetailsPage() {
   const params = useParams();
@@ -27,6 +28,10 @@ export default function EmployeeDetailsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [unassignDialogOpen, setUnassignDialogOpen] = useState(false);
+  const [pendingUnassignAssetId, setPendingUnassignAssetId] = useState<number | null>(null);
+  const [pendingUnassignAssetTag, setPendingUnassignAssetTag] = useState<string | undefined>(undefined);
+  const [unassigning, setUnassigning] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -52,15 +57,25 @@ export default function EmployeeDetailsPage() {
   }, [employeeId]);
 
   const handleUnassignAsset = async (assetId: number, assetTag: string) => {
-    if (!confirm(`Unassign asset "${assetTag}" from ${employee?.name}?`)) {
-      return;
-    }
+    setPendingUnassignAssetId(assetId);
+    setPendingUnassignAssetTag(assetTag);
+    setUnassignDialogOpen(true);
+  };
 
+  const handleConfirmUnassign = async (reason: string) => {
+    if (!pendingUnassignAssetId) return;
+
+    setUnassigning(true);
     try {
-      await assignAsset(assetId, null);
+      await assignAsset(pendingUnassignAssetId, null, reason);
+      setUnassignDialogOpen(false);
+      setPendingUnassignAssetId(null);
+      setPendingUnassignAssetTag(undefined);
       fetchData();
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to unassign asset");
+    } finally {
+      setUnassigning(false);
     }
   };
 
@@ -190,6 +205,14 @@ export default function EmployeeDetailsPage() {
           )}
         </CardContent>
       </Card>
+
+      <UnassignReasonDialog
+        open={unassignDialogOpen}
+        onOpenChange={setUnassignDialogOpen}
+        assetTag={pendingUnassignAssetTag}
+        submitting={unassigning}
+        onConfirm={handleConfirmUnassign}
+      />
     </div>
   );
 }

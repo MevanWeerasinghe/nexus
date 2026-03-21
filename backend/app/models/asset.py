@@ -19,6 +19,7 @@ class AssignmentHistory(Base):
     # Assignment timestamps
     assigned_at = Column(DateTime, nullable=False, server_default=func.now())
     unassigned_at = Column(DateTime, nullable=True)
+    unassign_reason = Column(String(500), nullable=True)
     
     # Relationships
     asset = relationship("Asset", back_populates="assignment_history")
@@ -66,6 +67,8 @@ class Asset(Base):
     # Asset details
     manufacturer = Column(String(100), nullable=False)
     model_name = Column(String(100), nullable=False)
+    model_number = Column(String(100), nullable=True)
+    usage_type = Column(String(50), nullable=False, default="Office")
     
     # Purchase information
     purchase_date = Column(Date, nullable=True)

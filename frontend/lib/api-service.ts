@@ -187,6 +187,8 @@ export interface Asset {
   employee_id?: number;
   manufacturer: string;
   model_name: string;
+  model_number?: string;
+  usage_type: string;
   purchase_date?: string;
   purchase_price?: number;
   warranty_months?: number;
@@ -212,6 +214,8 @@ export interface AssetCreate {
   supplier_id?: number;
   manufacturer: string;
   model_name: string;
+  model_number?: string;
+  usage_type: string;
   purchase_date?: string;
   purchase_price?: number;
   warranty_months?: number;
@@ -294,6 +298,12 @@ export interface AssignmentHistory {
   employee_department: string | null;
   assigned_at: string;
   unassigned_at: string | null;
+  unassign_reason: string | null;
+}
+
+export interface AssetAssignRequest {
+  employee_id: number | null;
+  unassign_reason?: string;
 }
 
 // ============== Auth Functions ==============
@@ -503,10 +513,20 @@ export async function getEmployeeAssets(employeeId: number): Promise<Asset[]> {
 
 // ============== Asset Assignment Functions ==============
 
-export async function assignAsset(assetId: number, employeeId: number | null): Promise<Asset> {
-  const response = await apiClient.post<Asset>(`/api/v1/assets/${assetId}/assign`, {
+export async function assignAsset(
+  assetId: number,
+  employeeId: number | null,
+  unassignReason?: string
+): Promise<Asset> {
+  const payload: AssetAssignRequest = {
     employee_id: employeeId,
-  });
+  };
+
+  if (employeeId === null && unassignReason?.trim()) {
+    payload.unassign_reason = unassignReason.trim();
+  }
+
+  const response = await apiClient.post<Asset>(`/api/v1/assets/${assetId}/assign`, payload);
   return response.data;
 }
 

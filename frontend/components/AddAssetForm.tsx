@@ -35,6 +35,10 @@ const assetFormSchema = z.object({
   supplier_id: z.string().min(1, "Supplier is required"),
   manufacturer: z.string().min(1, "Manufacturer is required"),
   model_name: z.string().min(1, "Model is required"),
+  model_number: z.string().optional(),
+  usage_type: z.enum(["Office", "Personal"], {
+    required_error: "Usage is required",
+  }),
   purchase_date: z.string().optional(),
   purchase_price: z.string().optional(),
   notes: z.string().optional(),
@@ -81,6 +85,8 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
       supplier_id: "",
       manufacturer: "",
       model_name: "",
+      model_number: "",
+      usage_type: "Office",
       purchase_date: "",
       purchase_price: "",
       notes: "",
@@ -120,6 +126,8 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
         supplier_id: parseInt(values.supplier_id),
         manufacturer: values.manufacturer,
         model_name: values.model_name,
+        model_number: values.model_number || undefined,
+        usage_type: values.usage_type,
         purchase_date: values.purchase_date || undefined,
         purchase_price: values.purchase_price ? parseFloat(values.purchase_price) : undefined,
         status: "Available",
@@ -276,6 +284,44 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                       <FormControl>
                         <Input placeholder="e.g., XPS 15" className="h-9" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="model_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Model Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., 9520" className="h-9" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="usage_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Usage *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-9 w-full">
+                            <SelectValue placeholder="Select usage" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Office">Office</SelectItem>
+                          <SelectItem value="Personal">Personal</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

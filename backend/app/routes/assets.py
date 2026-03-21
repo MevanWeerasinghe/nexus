@@ -898,6 +898,13 @@ def assign_asset(
         )
     
     # If asset is currently assigned, close out that assignment history record
+    is_actual_unassign = assignment.employee_id is None and asset.employee_id is not None
+    if is_actual_unassign and not (assignment.unassign_reason and assignment.unassign_reason.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unassign reason is required"
+        )
+
     if asset.employee_id is not None:
         current_history = db.query(AssignmentHistory).filter(
             AssignmentHistory.asset_id == asset_id,
@@ -906,6 +913,10 @@ def assign_asset(
         ).first()
         if current_history:
             current_history.unassigned_at = datetime.utcnow()
+            if assignment.employee_id is None:
+                current_history.unassign_reason = assignment.unassign_reason.strip() if assignment.unassign_reason else None
+            else:
+                current_history.unassign_reason = "Reassigned to another employee"
     
     if assignment.employee_id is not None:
         # Assigning to an employee

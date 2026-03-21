@@ -27,6 +27,7 @@ from app.models.component import Component, AssetComponentHistory  # noqa: F401
 from app.models.component_warranty import ComponentWarranty  # noqa: F401
 
 from migrations.add_supplier_id import migrate as migrate_add_supplier_id
+from migrations.add_asset_model_usage_and_unassign_reason import migrate as migrate_add_asset_model_usage_and_unassign_reason
 
 
 def run() -> None:
@@ -36,6 +37,7 @@ def run() -> None:
 
     print("[bootstrap] Running idempotent column migrations...")
     migrate_add_supplier_id()
+    migrate_add_asset_model_usage_and_unassign_reason()
     print("[bootstrap] Column migration check complete.")
 
     print("[bootstrap] Schema bootstrap finished successfully.")

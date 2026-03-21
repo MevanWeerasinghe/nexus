@@ -34,6 +34,7 @@ import AddAssetForm from "@/components/AddAssetForm";
 import AssignAssetDialog from "@/components/assets/AssignAssetDialog";
 import AssetProfileDialog from "@/components/assets/AssetProfileDialog";
 import AssignmentHistoryDialog from "@/components/assets/AssignmentHistoryDialog";
+import UnassignReasonDialog from "@/components/assets/UnassignReasonDialog";
 import EditAssetDialog, { EditAssetFormData } from "@/components/assets/EditAssetDialog";
 import InstallComponentDialog from "@/components/assets/InstallComponentDialog";
 import GenerateAssetReportDialog from "@/components/assets/GenerateAssetReportDialog";
@@ -133,6 +134,11 @@ export default function AssetsPage() {
   const [selectedComponentId, setSelectedComponentId] = useState<string>("");
   const [installNotes, setInstallNotes] = useState("");
   const [installing, setInstalling] = useState(false);
+  const [unassignDialogOpen, setUnassignDialogOpen] = useState(false);
+  const [pendingUnassignAssetId, setPendingUnassignAssetId] = useState<number | null>(null);
+  const [pendingUnassignAssetTag, setPendingUnassignAssetTag] = useState<string | undefined>(undefined);
+  const [pendingUnassignCloseProfile, setPendingUnassignCloseProfile] = useState(false);
+  const [unassigning, setUnassigning] = useState(false);
 
   const fetchAssets = useCallback(async () => {
     setLoading(true);
@@ -218,10 +224,22 @@ export default function AssetsPage() {
 
   const handleAssign = async () => {
     if (!selectedAsset) return;
+
+    const employeeId = selectedEmployeeId && selectedEmployeeId !== "unassigned" ? parseInt(selectedEmployeeId) : null;
+
+    if (employeeId === null && selectedAsset.employee_id != null) {
+      setAssignDialogOpen(false);
+      setSelectedEmployeeId("");
+      setSelectedAsset(null);
+      setPendingUnassignAssetId(selectedAsset.id);
+      setPendingUnassignAssetTag(selectedAsset.asset_tag);
+      setPendingUnassignCloseProfile(false);
+      setUnassignDialogOpen(true);
+      return;
+    }
     
     setAssigning(true);
     try {
-      const employeeId = selectedEmployeeId && selectedEmployeeId !== "unassigned" ? parseInt(selectedEmployeeId) : null;
       await assignAsset(selectedAsset.id, employeeId);
       setAssignDialogOpen(false);
       setSelectedAsset(null);
@@ -236,14 +254,32 @@ export default function AssetsPage() {
   };
 
   const handleUnassign = async (assetId: number) => {
-    if (!confirm("Unassign this asset from the current employee?")) return;
-    
+    const asset = assets.find((item) => item.id === assetId);
+    setPendingUnassignAssetId(assetId);
+    setPendingUnassignAssetTag(asset?.asset_tag);
+    setPendingUnassignCloseProfile(false);
+    setUnassignDialogOpen(true);
+  };
+
+  const handleConfirmUnassign = async (reason: string) => {
+    if (!pendingUnassignAssetId) return;
+
+    setUnassigning(true);
     try {
-      await assignAsset(assetId, null);
+      await assignAsset(pendingUnassignAssetId, null, reason);
+      setUnassignDialogOpen(false);
+      setPendingUnassignAssetId(null);
+      setPendingUnassignAssetTag(undefined);
+      if (pendingUnassignCloseProfile) {
+        setProfileDialogOpen(false);
+      }
+      setPendingUnassignCloseProfile(false);
       fetchAssets();
     } catch (err: any) {
       console.error("Failed to unassign asset:", err);
       setError(err.response?.data?.detail || "Failed to unassign asset");
+    } finally {
+      setUnassigning(false);
     }
   };
 
@@ -368,16 +404,10 @@ export default function AssetsPage() {
 
   const handleProfileUnassign = async () => {
     if (!profileAsset) return;
-    if (!confirm("Unassign this asset from the current employee?")) return;
-    
-    try {
-      await assignAsset(profileAsset.id, null);
-      setProfileDialogOpen(false);
-      fetchAssets();
-    } catch (err: any) {
-      console.error("Failed to unassign asset:", err);
-      setError(err.response?.data?.detail || "Failed to unassign asset");
-    }
+    setPendingUnassignAssetId(profileAsset.id);
+    setPendingUnassignAssetTag(profileAsset.asset_tag);
+    setPendingUnassignCloseProfile(true);
+    setUnassignDialogOpen(true);
   };
 
   const handleProfileDelete = async () => {
@@ -838,6 +868,14 @@ export default function AssetsPage() {
         onOpenChange={setReportDialogOpen}
         onGenerate={handleGenerateReport}
         generating={generatingReport}
+      />
+
+      <UnassignReasonDialog
+        open={unassignDialogOpen}
+        onOpenChange={setUnassignDialogOpen}
+        assetTag={pendingUnassignAssetTag}
+        submitting={unassigning}
+        onConfirm={handleConfirmUnassign}
       />
     </div>
   );
