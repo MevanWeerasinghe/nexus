@@ -38,6 +38,7 @@ def seed_roles(db: Session = Depends(get_db)):
     default_roles = [
         {"code": "admin", "name": "Administrator", "description": "Full access to all modules"},
         {"code": "itam_manager", "name": "ITAM Manager", "description": "Access to IT Asset Management module"},
+        {"code": "fuel_manager", "name": "Fuel Manager", "description": "Access to Fleet & Allocation Management System module"},
     ]
     
     created_roles = []
@@ -74,7 +75,8 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
         )
     
     # Get roles
-    roles = db.query(Role).filter(Role.code.in_(user_data.role_codes)).all()
+    role_codes = [str(role_code.value if hasattr(role_code, "value") else role_code) for role_code in user_data.role_codes]
+    roles = db.query(Role).filter(Role.code.in_(role_codes)).all()
     if not roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -128,7 +130,8 @@ def update_user(
     if user_data.is_active is not None:
         user.is_active = user_data.is_active
     if user_data.role_codes is not None:
-        roles = db.query(Role).filter(Role.code.in_(user_data.role_codes)).all()
+        role_codes = [str(role_code.value if hasattr(role_code, "value") else role_code) for role_code in user_data.role_codes]
+        roles = db.query(Role).filter(Role.code.in_(role_codes)).all()
         user.roles = roles
     
     db.commit()

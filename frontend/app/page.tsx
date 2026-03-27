@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { isAuthenticated } from "@/lib/auth";
-import { Zap, Building2, LogOut } from "lucide-react";
+import { Zap, Building2, Fuel, LogOut } from "lucide-react";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -50,26 +50,50 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {/* IT Asset Management Card - Active */}
           <Link href="/itams">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
+            <Card className="h-full cursor-pointer transition-shadow hover:shadow-lg flex flex-col">
               <CardHeader>
                 <div className="flex items-start justify-between mb-2">
                   <Zap className="h-8 w-8 text-primary" />
                   <Badge variant="default">Active</Badge>
                 </div>
-                <CardTitle>IT Asset Management</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl leading-tight min-h-14">IT Asset Management</CardTitle>
+                <CardDescription className="min-h-12">
                   Manage hardware, software, and assets
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex flex-col flex-1">
+                <p className="text-sm text-muted-foreground min-h-10">
                   Track, monitor, and manage all your IT assets in one place.
                 </p>
-                <Button className="w-full">
-                  Go to Dashboard
+                <Button className="w-full mt-4">
+                  Open Module
+                </Button>
+              </CardContent>
+            </Card>
+          </Link>
+
+          {/* Facility Maintenance Card - Coming Soon */}
+          <Link href="/fams">
+            <Card className="h-full cursor-pointer transition-shadow hover:shadow-lg flex flex-col">
+              <CardHeader>
+                <div className="flex items-start justify-between mb-2">
+                  <Fuel className="h-8 w-8 text-primary" />
+                  <Badge variant="default">Active</Badge>
+                </div>
+                <CardTitle className="text-xl leading-tight min-h-14">Fleet & Allocation Management</CardTitle>
+                <CardDescription className="min-h-12">
+                  Track vehicle fuel allocations and transactions
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-1">
+                <p className="text-sm text-muted-foreground min-h-10">
+                  Manage fleet fuel issuance, remaining quotas, and vehicle-wise logs.
+                </p>
+                <Button className="w-full mt-4">
+                  Open Module
                 </Button>
               </CardContent>
             </Card>
@@ -77,22 +101,22 @@ export default function LandingPage() {
 
           {/* Facility Maintenance Card - Coming Soon */}
           <div>
-            <Card className="opacity-50 cursor-not-allowed h-full">
+            <Card className="h-full opacity-50 cursor-not-allowed flex flex-col">
               <CardHeader>
                 <div className="flex items-start justify-between mb-2">
                   <Building2 className="h-8 w-8 text-muted-foreground" />
                   <Badge variant="secondary">Coming Soon</Badge>
                 </div>
-                <CardTitle>Facility Maintenance</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-xl leading-tight min-h-14">Facility Maintenance</CardTitle>
+                <CardDescription className="min-h-12">
                   Schedule and track facility maintenance
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
+              <CardContent className="flex flex-col flex-1">
+                <p className="text-sm text-muted-foreground min-h-10">
                   Manage maintenance schedules and work orders.
                 </p>
-                <Button className="w-full" disabled>
+                <Button className="w-full mt-4" disabled>
                   Coming Soon
                 </Button>
               </CardContent>

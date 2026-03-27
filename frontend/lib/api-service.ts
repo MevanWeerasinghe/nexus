@@ -483,6 +483,70 @@ export interface EmployeeUpdate {
   ip_address?: string;
 }
 
+// ============== FAMS Types ==============
+
+export type VehicleType = 'Car' | 'Bike';
+export type FuelType = 'Petrol' | 'Diesel';
+export type PetrolGrade = '92 Octane' | '95 Octane';
+export type DieselGrade = 'Auto Diesel' | 'Super Diesel 4 Star';
+export type FuelGrade = PetrolGrade | DieselGrade;
+
+export interface Vehicle {
+  id: number;
+  vehicle_number: string;
+  vehicle_type: VehicleType;
+  model: string;
+  employee_id?: number;
+  monthly_allocation: number;
+  fuel_type: FuelType;
+  remaining_fuel: number;
+  created_at: string;
+  updated_at: string;
+  employee?: Employee;
+}
+
+export interface VehicleCreate {
+  vehicle_number: string;
+  vehicle_type: VehicleType;
+  model: string;
+  employee_id?: number;
+  monthly_allocation: number;
+  fuel_type: FuelType;
+}
+
+export interface VehicleUpdate extends Partial<VehicleCreate> {}
+
+export interface FuelLog {
+  id: number;
+  vehicle_id: number;
+  receipt_number: string;
+  liters_issued: number;
+  fuel_grade: FuelGrade;
+  price_per_liter_lkr: number;
+  total_cost_lkr: number;
+  issue_date: string;
+  created_at: string;
+}
+
+export interface FuelLogCreate {
+  receipt_number: string;
+  liters_issued: number;
+  fuel_grade: FuelGrade;
+  price_per_liter_lkr: number;
+  issue_date?: string;
+}
+
+export interface FuelUsageReport {
+  vehicle_id: number;
+  vehicle_number: string;
+  fuel_type: FuelType;
+  start_date: string;
+  end_date: string;
+  total_liters_issued: number;
+  total_cost_lkr: number;
+  transactions: FuelLog[];
+}
+
 // ============== Employee Functions ==============
 
 export async function getEmployees(): Promise<Employee[]> {
@@ -511,6 +575,54 @@ export async function deleteEmployee(id: number): Promise<void> {
 
 export async function getEmployeeAssets(employeeId: number): Promise<Asset[]> {
   const response = await apiClient.get<Asset[]>(`/api/v1/employees/${employeeId}/assets`);
+  return response.data;
+}
+
+// ============== FAMS Functions ==============
+
+export async function getVehicles(search?: string): Promise<Vehicle[]> {
+  const params = search ? `?search=${encodeURIComponent(search)}` : '';
+  const response = await apiClient.get<Vehicle[]>(`/api/v1/fams/vehicles${params}`);
+  return response.data;
+}
+
+export async function getVehicle(vehicleId: number): Promise<Vehicle> {
+  const response = await apiClient.get<Vehicle>(`/api/v1/fams/vehicles/${vehicleId}`);
+  return response.data;
+}
+
+export async function createVehicle(data: VehicleCreate): Promise<Vehicle> {
+  const response = await apiClient.post<Vehicle>('/api/v1/fams/vehicles', data);
+  return response.data;
+}
+
+export async function updateVehicle(vehicleId: number, data: VehicleUpdate): Promise<Vehicle> {
+  const response = await apiClient.put<Vehicle>(`/api/v1/fams/vehicles/${vehicleId}`, data);
+  return response.data;
+}
+
+export async function deleteVehicle(vehicleId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/fams/vehicles/${vehicleId}`);
+}
+
+export async function getVehicleFuelLogs(vehicleId: number): Promise<FuelLog[]> {
+  const response = await apiClient.get<FuelLog[]>(`/api/v1/fams/vehicles/${vehicleId}/fuel-logs`);
+  return response.data;
+}
+
+export async function createVehicleFuelLog(vehicleId: number, data: FuelLogCreate): Promise<FuelLog> {
+  const response = await apiClient.post<FuelLog>(`/api/v1/fams/vehicles/${vehicleId}/fuel-logs`, data);
+  return response.data;
+}
+
+export async function getVehicleFuelUsageReport(
+  vehicleId: number,
+  startDate: string,
+  endDate: string
+): Promise<FuelUsageReport> {
+  const response = await apiClient.get<FuelUsageReport>(
+    `/api/v1/fams/vehicles/${vehicleId}/report?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`
+  );
   return response.data;
 }
 

@@ -19,12 +19,13 @@ class Role(Base):
     Predefined roles:
     - admin: Full access to all modules
     - itam_manager: Access to IT Asset Management module
+    - fuel_manager: Access to Fleet & Allocation Management System module
     """
     
     __tablename__ = "roles"
     
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(50), unique=True, nullable=False, index=True)  # e.g., 'admin', 'itam_manager'
+    code = Column(String(50), unique=True, nullable=False, index=True)  # e.g., 'admin', 'itam_manager', 'fuel_manager'
     name = Column(String(100), nullable=False)  # e.g., 'Administrator', 'ITAM Manager'
     description = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)

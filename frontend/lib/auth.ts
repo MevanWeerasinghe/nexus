@@ -69,3 +69,8 @@ export function isAdmin(): boolean {
 export function canAccessITAM(): boolean {
   return hasRole('itam_manager');
 }
+
+// Check if user can access FAMS module
+export function canAccessFAMS(): boolean {
+  return hasRole('fuel_manager');
+}

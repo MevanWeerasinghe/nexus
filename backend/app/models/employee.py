@@ -27,6 +27,9 @@ class Employee(Base):
     
     # Relationship to assignment history
     assignment_history = relationship("AssignmentHistory", back_populates="employee")
+
+    # Relationship to vehicles in FAMS module
+    vehicles = relationship("Vehicle", back_populates="employee")
     
     def __repr__(self):
         return f"<Employee(id={self.id}, name='{self.name}', email='{self.email}')>"

@@ -4,12 +4,13 @@ from fastapi import FastAPI
 
 from app.modules.auth.module import AUTH_MODULE
 from app.modules.contracts import ModuleDefinition
+from app.modules.fams.module import FAMS_MODULE
 from app.modules.itam.module import ITAM_MODULE
 
 
 def get_modules() -> list[ModuleDefinition]:
     """Return all enabled modules in include order."""
-    return [AUTH_MODULE, ITAM_MODULE]
+    return [AUTH_MODULE, ITAM_MODULE, FAMS_MODULE]
 
 
 def import_all_models(modules: Iterable[ModuleDefinition]) -> None:

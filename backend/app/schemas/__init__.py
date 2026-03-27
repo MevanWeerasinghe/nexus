@@ -1,5 +1,6 @@
 # User schemas
 from app.schemas.user import (
+    UserRole,
     UserCreate,
     UserUpdate,
     UserResponse,
@@ -34,8 +35,19 @@ from app.schemas.employee import (
     EmployeeListResponse,
 )
 
+# FAMS schemas
+from app.schemas.fams import (
+    VehicleCreate,
+    VehicleUpdate,
+    VehicleResponse,
+    FuelLogCreate,
+    FuelLogResponse,
+    FuelUsageReportResponse,
+)
+
 __all__ = [
     # User
+    "UserRole",
     "UserCreate",
     "UserResponse",
     "LoginRequest",
@@ -60,4 +72,11 @@ __all__ = [
     "EmployeeUpdate",
     "EmployeeResponse",
     "EmployeeListResponse",
+    # FAMS
+    "VehicleCreate",
+    "VehicleUpdate",
+    "VehicleResponse",
+    "FuelLogCreate",
+    "FuelLogResponse",
+    "FuelUsageReportResponse",
 ]

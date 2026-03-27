@@ -1,6 +1,13 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime
+from enum import Enum
+
+
+class UserRole(str, Enum):
+    admin = "admin"
+    itam_manager = "itam_manager"
+    fuel_manager = "fuel_manager"
 
 
 class RoleResponse(BaseModel):
@@ -19,14 +26,14 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=255)
     email: EmailStr
     password: str = Field(..., min_length=8)
-    role_codes: List[str] = Field(default=["itam_manager"], description="List of role codes to assign")
+    role_codes: List[UserRole] = Field(default=[UserRole.itam_manager], description="List of role codes to assign")
 
 
 class UserUpdate(BaseModel):
     """Schema for updating a user."""
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
-    role_codes: Optional[List[str]] = None
+    role_codes: Optional[List[UserRole]] = None
 
 
 class UserResponse(BaseModel):
