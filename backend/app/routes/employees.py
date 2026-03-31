@@ -102,15 +102,13 @@ def update_employee(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Employee not found"
         )
-    
-    # Check email uniqueness if being updated
-    if employee_data.email and employee_data.email != employee.email:
-        existing = db.query(Employee).filter(Employee.email == employee_data.email).first()
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="An employee with this email already exists"
-            )
+
+    # Email is immutable for employee records.
+    if employee_data.email is not None and employee_data.email != employee.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Employee email cannot be changed"
+        )
 
     normalized_ip = _normalize_ip(employee_data.ip_address) if employee_data.ip_address is not None else None
     if employee_data.ip_address is not None and normalized_ip:

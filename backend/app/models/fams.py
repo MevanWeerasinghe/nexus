@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Float, DateTime, Date, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -16,6 +16,7 @@ class Vehicle(Base):
     model = Column(String(100), nullable=False)
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
     monthly_allocation = Column(Float, nullable=False)
+    unlimited_fuel = Column(Boolean, nullable=False, server_default="0")
     fuel_type = Column(String(20), nullable=False)  # Petrol | Diesel
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -51,3 +52,17 @@ class FuelLog(Base):
 
     def __repr__(self) -> str:
         return f"<FuelLog(id={self.id}, vehicle_id={self.vehicle_id}, liters_issued={self.liters_issued})>"
+
+
+class FuelPrice(Base):
+    """Configured fuel prices per fuel grade for FAMS."""
+
+    __tablename__ = "fams_fuel_prices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    fuel_grade = Column(String(50), nullable=False, unique=True, index=True)
+    price_per_liter_lkr = Column(Float, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def __repr__(self) -> str:
+        return f"<FuelPrice(id={self.id}, fuel_grade='{self.fuel_grade}', price={self.price_per_liter_lkr})>"

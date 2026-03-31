@@ -18,7 +18,8 @@ class VehicleBase(BaseModel):
     vehicle_type: VehicleType
     model: str = Field(..., min_length=1, max_length=100)
     employee_id: Optional[int] = None
-    monthly_allocation: float = Field(..., gt=0)
+    monthly_allocation: Optional[float] = Field(None, gt=0)
+    unlimited_fuel: bool = False
     fuel_type: FuelType
 
 
@@ -32,6 +33,7 @@ class VehicleUpdate(BaseModel):
     model: Optional[str] = Field(None, min_length=1, max_length=100)
     employee_id: Optional[int] = None
     monthly_allocation: Optional[float] = Field(None, gt=0)
+    unlimited_fuel: Optional[bool] = None
     fuel_type: Optional[FuelType] = None
 
 
@@ -42,8 +44,10 @@ class VehicleResponse(BaseModel):
     model: str
     employee_id: Optional[int] = None
     monthly_allocation: float
+    unlimited_fuel: bool
     fuel_type: FuelType
-    remaining_fuel: float
+    remaining_fuel: Optional[float] = None
+    issued_fuel: float
     created_at: datetime
     updated_at: datetime
     employee: Optional[EmployeeResponse] = None
@@ -56,7 +60,7 @@ class FuelLogCreate(BaseModel):
     receipt_number: str = Field(..., min_length=1, max_length=100)
     liters_issued: float = Field(..., gt=0)
     fuel_grade: FuelGrade
-    price_per_liter_lkr: float = Field(..., gt=0)
+    price_per_liter_lkr: Optional[float] = Field(None, gt=0)
     issue_date: Optional[datetime] = None
 
 
@@ -84,3 +88,19 @@ class FuelUsageReportResponse(BaseModel):
     total_liters_issued: float
     total_cost_lkr: float
     transactions: List[FuelLogResponse]
+
+
+class FuelPriceResponse(BaseModel):
+    fuel_grade: FuelGrade
+    fuel_type: FuelType
+    price_per_liter_lkr: Optional[float] = None
+    updated_at: Optional[datetime] = None
+
+
+class FuelPriceInput(BaseModel):
+    fuel_grade: FuelGrade
+    price_per_liter_lkr: float = Field(..., gt=0)
+
+
+class FuelPriceBulkUpdate(BaseModel):
+    prices: List[FuelPriceInput]

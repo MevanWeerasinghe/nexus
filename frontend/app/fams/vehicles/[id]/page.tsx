@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Calendar,
   Fuel,
+  Infinity,
   Loader2,
   Plus,
   Receipt,
@@ -51,6 +52,7 @@ import {
 } from "@/components/ui/table";
 import {
   createVehicleFuelLog,
+  getFuelPrices,
   FuelGrade,
   FuelLog,
   getVehicle,
@@ -79,6 +81,7 @@ export default function VehicleDetailsPage() {
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
+  const [priceByGrade, setPriceByGrade] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -94,6 +97,8 @@ export default function VehicleDetailsPage() {
       price_per_liter_lkr: "",
     },
   });
+
+  const selectedGrade = form.watch("fuel_grade");
 
   const gradeOptions = useMemo(() => {
     if (!vehicle) {
@@ -112,21 +117,42 @@ export default function VehicleDetailsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [vehicleData, logsData] = await Promise.all([
+      const [vehicleData, logsData, pricesData] = await Promise.all([
         getVehicle(vehicleId),
         getVehicleFuelLogs(vehicleId),
+        getFuelPrices(),
       ]);
       setVehicle(vehicleData);
       setFuelLogs(logsData);
 
+      const nextPriceMap: Record<string, number> = {};
+      pricesData.forEach((item) => {
+        if (typeof item.price_per_liter_lkr === "number" && item.price_per_liter_lkr > 0) {
+          nextPriceMap[item.fuel_grade] = item.price_per_liter_lkr;
+        }
+      });
+      setPriceByGrade(nextPriceMap);
+
       const defaultGrade = vehicleData.fuel_type === "Petrol" ? PETROL_GRADES[0] : DIESEL_GRADES[0];
       form.setValue("fuel_grade", defaultGrade);
+      form.setValue(
+        "price_per_liter_lkr",
+        nextPriceMap[defaultGrade] ? String(nextPriceMap[defaultGrade]) : ""
+      );
     } catch (err: any) {
       setError(err.response?.data?.detail || "Failed to load vehicle details");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!selectedGrade) {
+      return;
+    }
+    const price = priceByGrade[selectedGrade];
+    form.setValue("price_per_liter_lkr", price ? String(price) : "");
+  }, [form, selectedGrade, priceByGrade]);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -142,12 +168,19 @@ export default function VehicleDetailsPage() {
     setSubmitting(true);
     setError(null);
     try {
+      const unitPrice = Number(values.price_per_liter_lkr || "");
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+        setError(`Fuel price is not configured for ${values.fuel_grade}. Please update Fuel Prices first.`);
+        setSubmitting(false);
+        return;
+      }
+
       await createVehicleFuelLog(vehicle.id, {
         issue_date: values.issue_date || undefined,
         receipt_number: values.receipt_number.trim(),
         liters_issued: parseFloat(values.liters_issued),
         fuel_grade: values.fuel_grade as FuelGrade,
-        price_per_liter_lkr: parseFloat(values.price_per_liter_lkr),
+        price_per_liter_lkr: unitPrice,
       });
 
       form.reset({
@@ -288,10 +321,21 @@ export default function VehicleDetailsPage() {
                       name="price_per_liter_lkr"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Price Per Liter (LKR)</FormLabel>
+                          <FormLabel>Price Per Liter (LKR) - Auto</FormLabel>
                           <FormControl>
-                            <Input type="number" min="0" step="0.01" placeholder="365" {...field} />
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Set in Fuel Prices page"
+                              readOnly
+                              className="bg-muted"
+                              {...field}
+                            />
                           </FormControl>
+                          <p className="text-xs text-muted-foreground">
+                            Price is pulled from Fuel Prices settings based on selected grade.
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -353,14 +397,30 @@ export default function VehicleDetailsPage() {
               Monthly Allocation
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">{vehicle.monthly_allocation.toFixed(2)} L</CardContent>
+          <CardContent className="text-2xl font-bold">
+            {vehicle.unlimited_fuel ? (
+              <span className="inline-flex items-center gap-2 text-primary">
+                <Infinity className="h-5 w-5" />
+              </span>
+            ) : (
+              `${vehicle.monthly_allocation.toFixed(2)} L`
+            )}
+          </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Remaining Fuel</CardTitle>
           </CardHeader>
-          <CardContent className="text-2xl font-bold">{vehicle.remaining_fuel.toFixed(2)} L</CardContent>
+          <CardContent className="text-2xl font-bold">
+            {vehicle.unlimited_fuel ? (
+              <span className="inline-flex items-center gap-2 text-primary">
+                <Infinity className="h-5 w-5" />
+              </span>
+            ) : (
+              `${(vehicle.remaining_fuel ?? 0).toFixed(2)} L`
+            )}
+          </CardContent>
         </Card>
 
         <Card>

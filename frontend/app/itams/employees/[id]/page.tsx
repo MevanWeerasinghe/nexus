@@ -6,6 +6,24 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -15,9 +33,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, User, Mail, Building, Package, Unlink, Network } from "lucide-react";
-import { getEmployee, getEmployeeAssets, assignAsset, Employee, Asset } from "@/modules/itam/api";
+import { ArrowLeft, User, Mail, Building, Package, Unlink, Network, Pencil } from "lucide-react";
+import { getEmployee, getEmployeeAssets, assignAsset, updateEmployee, Employee, Asset } from "@/modules/itam/api";
 import UnassignReasonDialog from "@/components/assets/UnassignReasonDialog";
+
+const DEPARTMENTS = [
+  "Admin",
+  "Directors",
+  "IT",
+  "Finance",
+  "Airfreight",
+  "Ocean freight",
+  "Sales",
+  "Import",
+  "Wharf",
+  "ACV",
+  "CFS Welisara",
+  "CFS GTL",
+] as const;
 
 export default function EmployeeDetailsPage() {
   const params = useParams();
@@ -32,6 +65,28 @@ export default function EmployeeDetailsPage() {
   const [pendingUnassignAssetId, setPendingUnassignAssetId] = useState<number | null>(null);
   const [pendingUnassignAssetTag, setPendingUnassignAssetTag] = useState<string | undefined>(undefined);
   const [unassigning, setUnassigning] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editIpAddress, setEditIpAddress] = useState("");
+
+  const getErrorMessage = (err: any, fallback: string) => {
+    const detail = err?.response?.data?.detail;
+    if (typeof detail === "string") {
+      return detail;
+    }
+    if (Array.isArray(detail)) {
+      return detail
+        .map((item) => (typeof item === "string" ? item : item?.msg || JSON.stringify(item)))
+        .join(" | ");
+    }
+    if (detail && typeof detail === "object") {
+      return detail.msg || JSON.stringify(detail);
+    }
+    return fallback;
+  };
 
   const fetchData = async () => {
     try {
@@ -44,7 +99,7 @@ export default function EmployeeDetailsPage() {
       setAssets(assetsData);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to load employee details");
+      setError(getErrorMessage(err, "Failed to load employee details"));
     } finally {
       setLoading(false);
     }
@@ -73,9 +128,48 @@ export default function EmployeeDetailsPage() {
       setPendingUnassignAssetTag(undefined);
       fetchData();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to unassign asset");
+      setError(getErrorMessage(err, "Failed to unassign asset"));
     } finally {
       setUnassigning(false);
+    }
+  };
+
+  const openEditDialog = () => {
+    if (!employee) {
+      return;
+    }
+    setEditName(employee.name || "");
+    setEditDepartment(employee.department || "");
+    setEditIpAddress(employee.ip_address || "");
+    setEditFormError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employee) {
+      return;
+    }
+
+    setEditFormError(null);
+    if (!editName.trim() || !editDepartment) {
+      setEditFormError("Name and department are required");
+      return;
+    }
+
+    try {
+      setIsEditSubmitting(true);
+      await updateEmployee(employee.id, {
+        name: editName.trim(),
+        department: editDepartment,
+        ip_address: editIpAddress.trim() || undefined,
+      });
+      setIsEditDialogOpen(false);
+      fetchData();
+    } catch (err: any) {
+      setEditFormError(getErrorMessage(err, "Failed to update employee"));
+    } finally {
+      setIsEditSubmitting(false);
     }
   };
 
@@ -104,7 +198,8 @@ export default function EmployeeDetailsPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
         <Link href="/itams/employees">
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-4 w-4" />
@@ -114,6 +209,77 @@ export default function EmployeeDetailsPage() {
           <h1 className="text-3xl font-bold">{employee.name}</h1>
           <p className="text-muted-foreground">Employee Details</p>
         </div>
+        </div>
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={openEditDialog}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit Employee
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Employee</DialogTitle>
+              <DialogDescription>
+                Update employee details. Email cannot be changed.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleEditEmployee}>
+              <div className="space-y-4 py-4">
+                {editFormError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{editFormError}</AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="profileEditName">Name *</Label>
+                  <Input
+                    id="profileEditName"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profileEditEmail">Email (Locked)</Label>
+                  <Input id="profileEditEmail" value={employee.email} readOnly disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profileEditDepartment">Department *</Label>
+                  <Select value={editDepartment} onValueChange={setEditDepartment}>
+                    <SelectTrigger id="profileEditDepartment">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profileEditIpAddress">IP Address</Label>
+                  <Input
+                    id="profileEditIpAddress"
+                    value={editIpAddress}
+                    onChange={(e) => setEditIpAddress(e.target.value)}
+                    placeholder="192.168.1.10"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isEditSubmitting}>
+                  {isEditSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Employee Info Card */}

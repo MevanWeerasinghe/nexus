@@ -31,8 +31,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Plus, Users, Eye, Trash2 } from "lucide-react";
-import { getEmployees, createEmployee, deleteEmployee, Employee } from "@/modules/itam/api";
+import { Plus, Users, Eye, Trash2, Pencil } from "lucide-react";
+import { getEmployees, createEmployee, deleteEmployee, updateEmployee, Employee } from "@/modules/itam/api";
 
 const DEPARTMENTS = [
   "Admin",
@@ -54,7 +54,10 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   
   // Form state
   const [name, setName] = useState("");
@@ -63,6 +66,27 @@ export default function EmployeesPage() {
   const [ipAddress, setIpAddress] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [formError, setFormError] = useState<string | null>(null);
+  const [editFormError, setEditFormError] = useState<string | null>(null);
+
+  const [editName, setEditName] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editIpAddress, setEditIpAddress] = useState("");
+
+  const getErrorMessage = (err: any, fallback: string) => {
+    const detail = err?.response?.data?.detail;
+    if (typeof detail === "string") {
+      return detail;
+    }
+    if (Array.isArray(detail)) {
+      return detail
+        .map((item) => (typeof item === "string" ? item : item?.msg || JSON.stringify(item)))
+        .join(" | ");
+    }
+    if (detail && typeof detail === "object") {
+      return detail.msg || JSON.stringify(detail);
+    }
+    return fallback;
+  };
 
   const filteredEmployees =
     departmentFilter === "all"
@@ -76,7 +100,7 @@ export default function EmployeesPage() {
       setEmployees(data);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to load employees");
+      setError(getErrorMessage(err, "Failed to load employees"));
     } finally {
       setLoading(false);
     }
@@ -90,8 +114,8 @@ export default function EmployeesPage() {
     e.preventDefault();
     setFormError(null);
     
-    if (!name.trim() || !email.trim() || !department || !ipAddress.trim()) {
-      setFormError("Name, email, department and IP address are required");
+    if (!name.trim() || !email.trim() || !department) {
+      setFormError("Name, email, and department are required");
       return;
     }
 
@@ -101,7 +125,7 @@ export default function EmployeesPage() {
         name: name.trim(),
         email: email.trim(),
         department,
-        ip_address: ipAddress.trim(),
+        ip_address: ipAddress.trim() || undefined,
       });
       
       // Reset form and close dialog
@@ -114,9 +138,47 @@ export default function EmployeesPage() {
       // Refresh employee list
       fetchEmployees();
     } catch (err: any) {
-      setFormError(err.response?.data?.detail || "Failed to create employee");
+      setFormError(getErrorMessage(err, "Failed to create employee"));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openEditDialog = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setEditName(employee.name || "");
+    setEditDepartment(employee.department || "");
+    setEditIpAddress(employee.ip_address || "");
+    setEditFormError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEmployee) {
+      return;
+    }
+
+    setEditFormError(null);
+    if (!editName.trim() || !editDepartment) {
+      setEditFormError("Name and department are required");
+      return;
+    }
+
+    try {
+      setIsEditSubmitting(true);
+      await updateEmployee(editingEmployee.id, {
+        name: editName.trim(),
+        department: editDepartment,
+        ip_address: editIpAddress.trim() || undefined,
+      });
+      setIsEditDialogOpen(false);
+      setEditingEmployee(null);
+      fetchEmployees();
+    } catch (err: any) {
+      setEditFormError(getErrorMessage(err, "Failed to update employee"));
+    } finally {
+      setIsEditSubmitting(false);
     }
   };
 
@@ -129,7 +191,7 @@ export default function EmployeesPage() {
       await deleteEmployee(id);
       fetchEmployees();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to delete employee");
+      setError(getErrorMessage(err, "Failed to delete employee"));
     }
   };
 
@@ -208,13 +270,12 @@ export default function EmployeesPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ipAddress">IP Address *</Label>
+                  <Label htmlFor="ipAddress">IP Address</Label>
                   <Input
                     id="ipAddress"
                     value={ipAddress}
                     onChange={(e) => setIpAddress(e.target.value)}
                     placeholder="192.168.1.10"
-                    required
                   />
                 </div>
               </div>
@@ -224,6 +285,76 @@ export default function EmployeesPage() {
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? "Creating..." : "Create Employee"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Employee</DialogTitle>
+              <DialogDescription>
+                Update employee details. Email cannot be changed.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleEditEmployee}>
+              <div className="space-y-4 py-4">
+                {editFormError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{editFormError}</AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="editName">Name *</Label>
+                  <Input
+                    id="editName"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editEmail">Email (Locked)</Label>
+                  <Input
+                    id="editEmail"
+                    value={editingEmployee?.email || ""}
+                    readOnly
+                    disabled
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editDepartment">Department *</Label>
+                  <Select value={editDepartment} onValueChange={setEditDepartment}>
+                    <SelectTrigger id="editDepartment">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editIpAddress">IP Address</Label>
+                  <Input
+                    id="editIpAddress"
+                    value={editIpAddress}
+                    onChange={(e) => setEditIpAddress(e.target.value)}
+                    placeholder="192.168.1.10"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isEditSubmitting}>
+                  {isEditSubmitting ? "Saving..." : "Save Changes"}
                 </Button>
               </DialogFooter>
             </form>
@@ -302,6 +433,14 @@ export default function EmployeesPage() {
                             View
                           </Button>
                         </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(employee)}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"

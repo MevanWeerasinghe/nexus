@@ -498,8 +498,10 @@ export interface Vehicle {
   model: string;
   employee_id?: number;
   monthly_allocation: number;
+  unlimited_fuel: boolean;
   fuel_type: FuelType;
-  remaining_fuel: number;
+  remaining_fuel?: number | null;
+  issued_fuel: number;
   created_at: string;
   updated_at: string;
   employee?: Employee;
@@ -510,7 +512,8 @@ export interface VehicleCreate {
   vehicle_type: VehicleType;
   model: string;
   employee_id?: number;
-  monthly_allocation: number;
+  monthly_allocation?: number;
+  unlimited_fuel?: boolean;
   fuel_type: FuelType;
 }
 
@@ -545,6 +548,18 @@ export interface FuelUsageReport {
   total_liters_issued: number;
   total_cost_lkr: number;
   transactions: FuelLog[];
+}
+
+export interface FuelPrice {
+  fuel_grade: FuelGrade;
+  fuel_type: FuelType;
+  price_per_liter_lkr?: number | null;
+  updated_at?: string | null;
+}
+
+export interface FuelPriceInput {
+  fuel_grade: FuelGrade;
+  price_per_liter_lkr: number;
 }
 
 // ============== Employee Functions ==============
@@ -623,6 +638,16 @@ export async function getVehicleFuelUsageReport(
   const response = await apiClient.get<FuelUsageReport>(
     `/api/v1/fams/vehicles/${vehicleId}/report?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`
   );
+  return response.data;
+}
+
+export async function getFuelPrices(): Promise<FuelPrice[]> {
+  const response = await apiClient.get<FuelPrice[]>('/api/v1/fams/fuel-prices');
+  return response.data;
+}
+
+export async function updateFuelPrices(prices: FuelPriceInput[]): Promise<FuelPrice[]> {
+  const response = await apiClient.put<FuelPrice[]>('/api/v1/fams/fuel-prices', { prices });
   return response.data;
 }
 

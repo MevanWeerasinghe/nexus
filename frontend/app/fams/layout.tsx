@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, LogOut, Menu, ShieldAlert, Truck } from "lucide-react";
+import { ArrowLeft, LogOut, Menu, ShieldAlert, Tags, Truck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { canAccessFAMS, clearAuthTokens, isAuthenticated } from "@/lib/auth";
@@ -76,6 +76,13 @@ export default function FAMSLayout({ children }: { children: React.ReactNode }) 
             <Button variant="ghost" className="w-full justify-start gap-3">
               <Truck className="h-5 w-5" />
               {sidebarOpen && "Vehicles"}
+            </Button>
+          </Link>
+
+          <Link href="/fams/fuel-prices">
+            <Button variant="ghost" className="w-full justify-start gap-3">
+              <Tags className="h-5 w-5" />
+              {sidebarOpen && "Fuel Prices"}
             </Button>
           </Link>
         </nav>
