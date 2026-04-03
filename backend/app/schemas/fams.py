@@ -6,7 +6,8 @@ from pydantic import BaseModel, Field
 from app.schemas.employee import EmployeeResponse
 
 
-VehicleType = Literal["Car", "Bike"]
+VehicleType = Literal["Car", "Bike", "Van", "Lorry"]
+VehicleOwnershipType = Literal["Office Vehicle", "Personal Vehicle"]
 FuelType = Literal["Petrol", "Diesel"]
 PetrolGrade = Literal["92 Octane", "95 Octane"]
 DieselGrade = Literal["Auto Diesel", "Super Diesel 4 Star"]
@@ -17,8 +18,10 @@ class VehicleBase(BaseModel):
     vehicle_number: str = Field(..., min_length=1, max_length=50)
     vehicle_type: VehicleType
     model: str = Field(..., min_length=1, max_length=100)
+    ownership_type: VehicleOwnershipType = "Office Vehicle"
     employee_id: Optional[int] = None
     monthly_allocation: Optional[float] = Field(None, gt=0)
+    fuel_capacity_liters: float = Field(..., gt=0)
     unlimited_fuel: bool = False
     fuel_type: FuelType
 
@@ -31,8 +34,10 @@ class VehicleUpdate(BaseModel):
     vehicle_number: Optional[str] = Field(None, min_length=1, max_length=50)
     vehicle_type: Optional[VehicleType] = None
     model: Optional[str] = Field(None, min_length=1, max_length=100)
+    ownership_type: Optional[VehicleOwnershipType] = None
     employee_id: Optional[int] = None
     monthly_allocation: Optional[float] = Field(None, gt=0)
+    fuel_capacity_liters: Optional[float] = Field(None, gt=0)
     unlimited_fuel: Optional[bool] = None
     fuel_type: Optional[FuelType] = None
 
@@ -42,8 +47,10 @@ class VehicleResponse(BaseModel):
     vehicle_number: str
     vehicle_type: VehicleType
     model: str
+    ownership_type: VehicleOwnershipType
     employee_id: Optional[int] = None
     monthly_allocation: float
+    fuel_capacity_liters: Optional[float] = None
     unlimited_fuel: bool
     fuel_type: FuelType
     remaining_fuel: Optional[float] = None
@@ -57,6 +64,14 @@ class VehicleResponse(BaseModel):
 
 
 class FuelLogCreate(BaseModel):
+    receipt_number: str = Field(..., min_length=1, max_length=100)
+    liters_issued: float = Field(..., gt=0)
+    fuel_grade: FuelGrade
+    price_per_liter_lkr: Optional[float] = Field(None, gt=0)
+    issue_date: Optional[datetime] = None
+
+
+class FuelLogUpdate(BaseModel):
     receipt_number: str = Field(..., min_length=1, max_length=100)
     liters_issued: float = Field(..., gt=0)
     fuel_grade: FuelGrade

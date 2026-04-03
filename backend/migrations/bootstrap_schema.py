@@ -31,6 +31,7 @@ from migrations.add_supplier_id import migrate as migrate_add_supplier_id
 from migrations.add_asset_model_usage_and_unassign_reason import migrate as migrate_add_asset_model_usage_and_unassign_reason
 from migrations.add_employee_ip_address import migrate as migrate_add_employee_ip_address
 from migrations.add_fams_unlimited_fuel_flag import migrate as migrate_add_fams_unlimited_fuel_flag
+from migrations.add_vehicle_ownership_and_fuel_capacity import migrate as migrate_add_vehicle_ownership_and_fuel_capacity
 from migrations.add_fuel_manager_role import migrate as migrate_add_fuel_manager_role
 
 
@@ -44,6 +45,7 @@ def run() -> None:
     migrate_add_asset_model_usage_and_unassign_reason()
     migrate_add_employee_ip_address()
     migrate_add_fams_unlimited_fuel_flag()
+    migrate_add_vehicle_ownership_and_fuel_capacity()
     migrate_add_fuel_manager_role()
     print("[bootstrap] Column migration check complete.")
 

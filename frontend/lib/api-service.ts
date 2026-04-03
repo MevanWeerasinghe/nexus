@@ -485,7 +485,8 @@ export interface EmployeeUpdate {
 
 // ============== FAMS Types ==============
 
-export type VehicleType = 'Car' | 'Bike';
+export type VehicleType = 'Car' | 'Bike' | 'Van' | 'Lorry';
+export type VehicleOwnershipType = 'Office Vehicle' | 'Personal Vehicle';
 export type FuelType = 'Petrol' | 'Diesel';
 export type PetrolGrade = '92 Octane' | '95 Octane';
 export type DieselGrade = 'Auto Diesel' | 'Super Diesel 4 Star';
@@ -496,8 +497,10 @@ export interface Vehicle {
   vehicle_number: string;
   vehicle_type: VehicleType;
   model: string;
+  ownership_type: VehicleOwnershipType;
   employee_id?: number;
   monthly_allocation: number;
+  fuel_capacity_liters?: number | null;
   unlimited_fuel: boolean;
   fuel_type: FuelType;
   remaining_fuel?: number | null;
@@ -511,8 +514,10 @@ export interface VehicleCreate {
   vehicle_number: string;
   vehicle_type: VehicleType;
   model: string;
+  ownership_type: VehicleOwnershipType;
   employee_id?: number;
   monthly_allocation?: number;
+  fuel_capacity_liters: number;
   unlimited_fuel?: boolean;
   fuel_type: FuelType;
 }
@@ -532,6 +537,14 @@ export interface FuelLog {
 }
 
 export interface FuelLogCreate {
+  receipt_number: string;
+  liters_issued: number;
+  fuel_grade: FuelGrade;
+  price_per_liter_lkr: number;
+  issue_date?: string;
+}
+
+export interface FuelLogUpdate {
   receipt_number: string;
   liters_issued: number;
   fuel_grade: FuelGrade;
@@ -627,6 +640,11 @@ export async function getVehicleFuelLogs(vehicleId: number): Promise<FuelLog[]> 
 
 export async function createVehicleFuelLog(vehicleId: number, data: FuelLogCreate): Promise<FuelLog> {
   const response = await apiClient.post<FuelLog>(`/api/v1/fams/vehicles/${vehicleId}/fuel-logs`, data);
+  return response.data;
+}
+
+export async function updateVehicleFuelLog(vehicleId: number, logId: number, data: FuelLogUpdate): Promise<FuelLog> {
+  const response = await apiClient.put<FuelLog>(`/api/v1/fams/vehicles/${vehicleId}/fuel-logs/${logId}`, data);
   return response.data;
 }
 

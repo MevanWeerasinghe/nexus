@@ -14,8 +14,10 @@ class Vehicle(Base):
     vehicle_number = Column(String(50), unique=True, nullable=False, index=True)
     vehicle_type = Column(String(20), nullable=False)  # Car | Bike
     model = Column(String(100), nullable=False)
+    ownership_type = Column(String(50), nullable=False, server_default="Office Vehicle")
     employee_id = Column(Integer, ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
     monthly_allocation = Column(Float, nullable=False)
+    fuel_capacity_liters = Column(Float, nullable=True)
     unlimited_fuel = Column(Boolean, nullable=False, server_default="0")
     fuel_type = Column(String(20), nullable=False)  # Petrol | Diesel
     created_at = Column(DateTime, server_default=func.now(), nullable=False)

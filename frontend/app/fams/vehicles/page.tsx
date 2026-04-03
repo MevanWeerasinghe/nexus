@@ -11,6 +11,7 @@ import {
   Fuel,
   Infinity,
   Loader2,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -60,16 +61,22 @@ import {
   Employee,
   Vehicle,
   VehicleCreate,
+  updateVehicle,
 } from "@/modules/fams/api";
 import { isAuthenticated } from "@/lib/auth";
 
+const VEHICLE_TYPES = ["Car", "Bike", "Van", "Lorry"] as const;
+const OWNERSHIP_TYPES = ["Office Vehicle", "Personal Vehicle"] as const;
+
 const vehicleSchema = z.object({
   vehicle_number: z.string().min(1, "Vehicle number is required"),
-  vehicle_type: z.enum(["Car", "Bike"]),
+  vehicle_type: z.enum(VEHICLE_TYPES),
   model: z.string().min(1, "Vehicle model is required"),
+  ownership_type: z.enum(["Office Vehicle", "Personal Vehicle"]),
   employee_id: z.string().optional(),
   unlimited_fuel: z.boolean().default(false),
   monthly_allocation: z.string().optional(),
+  fuel_capacity_liters: z.string().min(1, "Engine capacity is required"),
   fuel_type: z.enum(["Petrol", "Diesel"]),
 }).superRefine((values, context) => {
   if (values.unlimited_fuel) {
@@ -91,6 +98,15 @@ const vehicleSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: "Monthly allocation must be greater than zero",
       path: ["monthly_allocation"],
+    });
+  }
+
+  const capacity = Number(values.fuel_capacity_liters);
+  if (!Number.isFinite(capacity) || capacity <= 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Engine capacity must be greater than zero",
+      path: ["fuel_capacity_liters"],
     });
   }
 });
@@ -139,8 +155,12 @@ export default function FAMSVehiclesPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [editEmployeeSearch, setEditEmployeeSearch] = useState("");
 
   const form = useForm<VehicleFormValues>({
     resolver: zodResolver(vehicleSchema),
@@ -148,14 +168,32 @@ export default function FAMSVehiclesPage() {
       vehicle_number: "",
       vehicle_type: "Car",
       model: "",
+      ownership_type: "Office Vehicle",
       employee_id: "unassigned",
       unlimited_fuel: false,
       monthly_allocation: "",
+      fuel_capacity_liters: "",
+      fuel_type: "Petrol",
+    },
+  });
+
+  const editForm = useForm<VehicleFormValues>({
+    resolver: zodResolver(vehicleSchema),
+    defaultValues: {
+      vehicle_number: "",
+      vehicle_type: "Car",
+      model: "",
+      ownership_type: "Office Vehicle",
+      employee_id: "unassigned",
+      unlimited_fuel: false,
+      monthly_allocation: "",
+      fuel_capacity_liters: "",
       fuel_type: "Petrol",
     },
   });
 
   const unlimitedFuel = form.watch("unlimited_fuel");
+  const editUnlimitedFuel = editForm.watch("unlimited_fuel");
 
   const loadPageData = async (searchTerm = "") => {
     setLoading(true);
@@ -203,6 +241,14 @@ export default function FAMSVehiclesPage() {
     return employees.filter((employee) => employee.name.toLowerCase().includes(term));
   }, [employees, employeeSearch]);
 
+  const filteredEditEmployees = useMemo(() => {
+    const term = editEmployeeSearch.trim().toLowerCase();
+    if (!term) {
+      return employees;
+    }
+    return employees.filter((employee) => employee.name.toLowerCase().includes(term));
+  }, [employees, editEmployeeSearch]);
+
   const handleCreateVehicle = async (values: VehicleFormValues) => {
     setSubmitting(true);
     setError(null);
@@ -212,9 +258,11 @@ export default function FAMSVehiclesPage() {
         vehicle_number: values.vehicle_number.trim(),
         vehicle_type: values.vehicle_type,
         model: values.model.trim(),
+        ownership_type: values.ownership_type,
         employee_id: values.employee_id && values.employee_id !== "unassigned" ? parseInt(values.employee_id, 10) : undefined,
         unlimited_fuel: values.unlimited_fuel,
         ...(values.unlimited_fuel ? {} : { monthly_allocation: parseFloat(values.monthly_allocation || "0") }),
+        fuel_capacity_liters: parseFloat(values.fuel_capacity_liters),
         fuel_type: values.fuel_type,
       };
 
@@ -239,6 +287,54 @@ export default function FAMSVehiclesPage() {
       await loadPageData(search);
     } catch (err: any) {
       setError(getErrorMessage(err));
+    }
+  };
+
+  const openEditDialog = (vehicle: Vehicle) => {
+    setEditingVehicle(vehicle);
+    setEditEmployeeSearch("");
+    editForm.reset({
+      vehicle_number: vehicle.vehicle_number,
+      vehicle_type: vehicle.vehicle_type,
+      model: vehicle.model,
+      ownership_type: vehicle.ownership_type,
+      employee_id: vehicle.employee_id ? String(vehicle.employee_id) : "unassigned",
+      unlimited_fuel: vehicle.unlimited_fuel,
+      monthly_allocation: vehicle.unlimited_fuel ? "" : String(vehicle.monthly_allocation),
+      fuel_capacity_liters: vehicle.fuel_capacity_liters ? String(vehicle.fuel_capacity_liters) : "",
+      fuel_type: vehicle.fuel_type,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditVehicle = async (values: VehicleFormValues) => {
+    if (!editingVehicle) {
+      return;
+    }
+
+    setEditSubmitting(true);
+    setError(null);
+    try {
+      const payload: VehicleCreate = {
+        vehicle_number: values.vehicle_number.trim(),
+        vehicle_type: values.vehicle_type,
+        model: values.model.trim(),
+        ownership_type: values.ownership_type,
+        employee_id: values.employee_id && values.employee_id !== "unassigned" ? parseInt(values.employee_id, 10) : undefined,
+        unlimited_fuel: values.unlimited_fuel,
+        ...(values.unlimited_fuel ? {} : { monthly_allocation: parseFloat(values.monthly_allocation || "0") }),
+        fuel_capacity_liters: parseFloat(values.fuel_capacity_liters),
+        fuel_type: values.fuel_type,
+      };
+
+      await updateVehicle(editingVehicle.id, payload);
+      setEditDialogOpen(false);
+      setEditingVehicle(null);
+      await loadPageData(search);
+    } catch (err: any) {
+      setError(getErrorMessage(err));
+    } finally {
+      setEditSubmitting(false);
     }
   };
 
@@ -274,33 +370,12 @@ export default function FAMSVehiclesPage() {
               <DialogHeader>
                 <DialogTitle>Register Vehicle</DialogTitle>
                 <DialogDescription>
-                  Add a vehicle and configure how fuel is allocated.
+                  Add a vehicle and configure ownership, engine capacity, and fuel allocation.
                 </DialogDescription>
               </DialogHeader>
 
               <Form form={form}>
                 <form className="space-y-4" onSubmit={form.handleSubmit(handleCreateVehicle)}>
-                  <FormField
-                    control={form.control}
-                    name="unlimited_fuel"
-                    render={({ field }) => (
-                      <FormItem className="rounded-md border p-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <FormLabel className="text-sm font-medium">Unlimited Monthly Fuel</FormLabel>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Enable for vehicles that should not be capped by monthly allocation.
-                            </p>
-                          </div>
-                          <FormControl>
-                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                          </FormControl>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -329,8 +404,9 @@ export default function FAMSVehiclesPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Car">Car</SelectItem>
-                              <SelectItem value="Bike">Bike</SelectItem>
+                              {VEHICLE_TYPES.map((type) => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -347,6 +423,31 @@ export default function FAMSVehiclesPage() {
                           <FormControl>
                             <Input placeholder="Toyota Axio" {...field} />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="ownership_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vehicle Ownership</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select ownership" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {OWNERSHIP_TYPES.map((type) => (
+                                <SelectItem key={type} value={type}>
+                                  {type}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -395,28 +496,60 @@ export default function FAMSVehiclesPage() {
 
                     <FormField
                       control={form.control}
-                      name="monthly_allocation"
+                      name="fuel_capacity_liters"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Monthly Fuel Allocation (L)</FormLabel>
+                          <FormLabel>Engine Capacity (CC)</FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              placeholder={unlimitedFuel ? "Unlimited mode enabled" : "40"}
-                              disabled={unlimitedFuel}
-                              {...field}
-                              value={unlimitedFuel ? "" : field.value}
-                            />
+                            <Input type="number" min="0" step="1" placeholder="1500" {...field} />
                           </FormControl>
-                          {unlimitedFuel ? (
-                            <p className="text-xs text-muted-foreground">No monthly cap will be enforced.</p>
-                          ) : null}
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
+                    <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                      <FormField
+                        control={form.control}
+                        name="unlimited_fuel"
+                        render={({ field }) => (
+                          <FormItem className="space-y-0">
+                            <FormControl>
+                              <div className="inline-flex items-center gap-3 rounded-full border bg-background px-4 py-2 shadow-sm">
+                                <FormLabel className="text-sm font-medium leading-none">Unlimited fuel</FormLabel>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="monthly_allocation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Monthly Fuel Allocation (L)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder={unlimitedFuel ? "Unlimited mode enabled" : "40"}
+                                disabled={unlimitedFuel}
+                                {...field}
+                                value={unlimitedFuel ? "" : field.value}
+                              />
+                            </FormControl>
+                            {unlimitedFuel ? (
+                              <p className="text-xs text-muted-foreground">No monthly cap will be enforced.</p>
+                            ) : null}
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <FormField
                       control={form.control}
@@ -448,6 +581,219 @@ export default function FAMSVehiclesPage() {
                     <Button type="submit" disabled={submitting}>
                       {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                       Save Vehicle
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Edit Vehicle</DialogTitle>
+                <DialogDescription>
+                  Update vehicle details, ownership, and allocation settings.
+                </DialogDescription>
+              </DialogHeader>
+
+              <Form form={editForm}>
+                <form className="space-y-4" onSubmit={editForm.handleSubmit(handleEditVehicle)}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="vehicle_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vehicle Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="vehicle_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vehicle Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {VEHICLE_TYPES.map((type) => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="model"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vehicle Model</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="ownership_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vehicle Ownership</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select ownership" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {OWNERSHIP_TYPES.map((type) => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="employee_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned Employee</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Optional" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <div className="px-2 pb-2">
+                                <Input
+                                  placeholder="Search employee..."
+                                  value={editEmployeeSearch}
+                                  onChange={(event) => setEditEmployeeSearch(event.target.value)}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                />
+                              </div>
+                              <div className="max-h-56 overflow-y-auto">
+                                <SelectItem value="unassigned">Unassigned</SelectItem>
+                                {filteredEditEmployees.map((employee) => (
+                                  <SelectItem key={employee.id} value={employee.id.toString()}>
+                                    {employee.name}
+                                  </SelectItem>
+                                ))}
+                              </div>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="fuel_capacity_liters"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Engine Capacity (CC)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" step="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                      <FormField
+                        control={editForm.control}
+                        name="unlimited_fuel"
+                        render={({ field }) => (
+                          <FormItem className="space-y-0">
+                            <FormControl>
+                              <div className="inline-flex items-center gap-3 rounded-full border bg-background px-4 py-2 shadow-sm">
+                                <FormLabel className="text-sm font-medium leading-none">Unlimited fuel</FormLabel>
+                                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={editForm.control}
+                        name="monthly_allocation"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Monthly Fuel Allocation (L)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder={editUnlimitedFuel ? "Unlimited mode enabled" : "40"}
+                                disabled={editUnlimitedFuel}
+                                {...field}
+                                value={editUnlimitedFuel ? "" : field.value}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={editForm.control}
+                      name="fuel_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Fuel Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Petrol">Petrol</SelectItem>
+                              <SelectItem value="Diesel">Diesel</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={editSubmitting}>
+                      {editSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Update Vehicle
                     </Button>
                   </div>
                 </form>
@@ -523,7 +869,7 @@ export default function FAMSVehiclesPage() {
                         <TableCell className="text-right">
                           {vehicle.unlimited_fuel ? (
                             <span className="inline-flex items-center gap-1 text-primary font-semibold">
-                              - <Infinity className="h-4 w-4" /> -
+                              - Unlimited -
                             </span>
                           ) : (
                             `${vehicle.monthly_allocation.toFixed(2)} L`
@@ -533,7 +879,7 @@ export default function FAMSVehiclesPage() {
                         <TableCell className="text-right font-semibold">
                           {vehicle.unlimited_fuel ? (
                             <span className="inline-flex items-center gap-1 text-primary">
-                              - <Infinity className="h-4 w-4" /> -
+                              - Unlimited -
                             </span>
                           ) : (
                             `${(vehicle.remaining_fuel ?? 0).toFixed(2)} L`
@@ -547,6 +893,13 @@ export default function FAMSVehiclesPage() {
                               onClick={() => router.push(`/fams/vehicles/${vehicle.id}`)}
                             >
                               <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openEditDialog(vehicle)}
+                            >
+                              <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               size="icon"

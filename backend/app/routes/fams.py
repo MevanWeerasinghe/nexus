@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.fams import (
     FuelLogCreate,
     FuelLogResponse,
+    FuelLogUpdate,
     FuelPriceBulkUpdate,
     FuelPriceResponse,
     FuelUsageReportResponse,
@@ -69,8 +70,10 @@ def _vehicle_to_response(db: Session, vehicle: Vehicle) -> VehicleResponse:
         vehicle_number=vehicle.vehicle_number,
         vehicle_type=vehicle.vehicle_type,
         model=vehicle.model,
+        ownership_type=vehicle.ownership_type,
         employee_id=vehicle.employee_id,
         monthly_allocation=vehicle.monthly_allocation,
+        fuel_capacity_liters=vehicle.fuel_capacity_liters,
         unlimited_fuel=vehicle.unlimited_fuel,
         fuel_type=vehicle.fuel_type,
         remaining_fuel=_remaining_for_vehicle(db, vehicle),
@@ -86,6 +89,11 @@ def _validate_grade_for_fuel_type(fuel_type: str, fuel_grade: str) -> None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid fuel grade for Petrol vehicle",
+        )
+    if fuel_type == "Diesel" and fuel_grade not in {"Auto Diesel", "Super Diesel 4 Star"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid fuel grade for Diesel vehicle",
         )
 
 
@@ -146,11 +154,6 @@ def update_fuel_prices(
     db.commit()
     rows = db.query(FuelPrice).order_by(FuelPrice.fuel_grade).all()
     return [_price_row_to_response(row) for row in rows]
-    if fuel_type == "Diesel" and fuel_grade not in {"Auto Diesel", "Super Diesel 4 Star"}:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid fuel grade for Diesel vehicle",
-        )
 
 
 @router.get("/vehicles", response_model=List[VehicleResponse])
@@ -348,6 +351,69 @@ def create_fuel_log(
         issue_date=issue_date,
     )
     db.add(log)
+    db.commit()
+    db.refresh(log)
+    return log
+
+
+@router.put("/vehicles/{vehicle_id}/fuel-logs/{log_id}", response_model=FuelLogResponse)
+def update_fuel_log(
+    vehicle_id: int,
+    log_id: int,
+    payload: FuelLogUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("fuel_manager")),
+):
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    log = db.query(FuelLog).filter(FuelLog.id == log_id, FuelLog.vehicle_id == vehicle_id).first()
+    if not log:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuel log not found")
+
+    _validate_grade_for_fuel_type(vehicle.fuel_type, payload.fuel_grade)
+    _ensure_fuel_price_rows(db)
+
+    configured_price = (
+        db.query(FuelPrice)
+        .filter(FuelPrice.fuel_grade == payload.fuel_grade)
+        .first()
+    )
+    if not configured_price or not configured_price.price_per_liter_lkr or configured_price.price_per_liter_lkr <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Fuel price is not configured for {payload.fuel_grade}. Please set prices in Fuel Prices.",
+        )
+
+    issue_date = payload.issue_date or log.issue_date
+    if not vehicle.unlimited_fuel:
+        month_start, month_end = _month_bounds(issue_date)
+        issued_without_current = (
+            db.query(func.coalesce(func.sum(FuelLog.liters_issued), 0.0))
+            .filter(
+                FuelLog.vehicle_id == vehicle.id,
+                FuelLog.issue_date >= month_start,
+                FuelLog.issue_date < month_end,
+                FuelLog.id != log.id,
+            )
+            .scalar()
+        )
+        remaining = round(vehicle.monthly_allocation - float(issued_without_current or 0.0), 2)
+        if payload.liters_issued > remaining:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient remaining allocation. Remaining for month: {remaining:.2f}L",
+            )
+
+    unit_price = float(configured_price.price_per_liter_lkr)
+    log.receipt_number = payload.receipt_number.strip()
+    log.liters_issued = payload.liters_issued
+    log.fuel_grade = payload.fuel_grade
+    log.price_per_liter_lkr = unit_price
+    log.total_cost_lkr = round(payload.liters_issued * unit_price, 2)
+    log.issue_date = issue_date
+
     db.commit()
     db.refresh(log)
     return log
