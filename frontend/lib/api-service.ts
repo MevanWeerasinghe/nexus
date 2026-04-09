@@ -552,6 +552,23 @@ export interface FuelLogUpdate {
   issue_date?: string;
 }
 
+export interface FuelLogDetail {
+  id: number;
+  vehicle_id: number;
+  vehicle_number: string;
+  vehicle_type: VehicleType;
+  fuel_type: FuelType;
+  employee_id?: number;
+  employee_name?: string | null;
+  receipt_number: string;
+  liters_issued: number;
+  fuel_grade: FuelGrade;
+  price_per_liter_lkr: number;
+  total_cost_lkr: number;
+  issue_date: string;
+  created_at: string;
+}
+
 export interface FuelUsageReport {
   vehicle_id: number;
   vehicle_number: string;
@@ -645,6 +662,13 @@ export async function createVehicleFuelLog(vehicleId: number, data: FuelLogCreat
 
 export async function updateVehicleFuelLog(vehicleId: number, logId: number, data: FuelLogUpdate): Promise<FuelLog> {
   const response = await apiClient.put<FuelLog>(`/api/v1/fams/vehicles/${vehicleId}/fuel-logs/${logId}`, data);
+  return response.data;
+}
+
+export async function getFuelLogs(startDate: string, endDate: string): Promise<FuelLogDetail[]> {
+  const response = await apiClient.get<FuelLogDetail[]>(
+    `/api/v1/fams/fuel-logs?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`
+  );
   return response.data;
 }
 

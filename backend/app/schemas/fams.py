@@ -94,6 +94,26 @@ class FuelLogResponse(BaseModel):
         from_attributes = True
 
 
+class FuelLogDetailResponse(BaseModel):
+    id: int
+    vehicle_id: int
+    vehicle_number: str
+    vehicle_type: VehicleType
+    fuel_type: FuelType
+    employee_id: Optional[int] = None
+    employee_name: Optional[str] = None
+    receipt_number: str
+    liters_issued: float
+    fuel_grade: FuelGrade
+    price_per_liter_lkr: float
+    total_cost_lkr: float
+    issue_date: datetime
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class FuelUsageReportResponse(BaseModel):
     vehicle_id: int
     vehicle_number: str

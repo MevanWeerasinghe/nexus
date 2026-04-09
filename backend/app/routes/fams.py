@@ -12,6 +12,7 @@ from app.models.fams import FuelLog, FuelPrice, Vehicle
 from app.models.user import User
 from app.schemas.fams import (
     FuelLogCreate,
+    FuelLogDetailResponse,
     FuelLogResponse,
     FuelLogUpdate,
     FuelPriceBulkUpdate,
@@ -417,6 +418,66 @@ def update_fuel_log(
     db.commit()
     db.refresh(log)
     return log
+
+
+@router.get("/fuel-logs", response_model=List[FuelLogDetailResponse])
+def get_fuel_logs(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("fuel_manager")),
+):
+    if start_date > end_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="start_date must be before end_date")
+
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date + timedelta(days=1), datetime.min.time())
+
+    logs = (
+        db.query(
+            FuelLog.id,
+            FuelLog.vehicle_id,
+            Vehicle.vehicle_number,
+            Vehicle.vehicle_type,
+            Vehicle.fuel_type,
+            Vehicle.employee_id,
+            Employee.name.label("employee_name"),
+            FuelLog.receipt_number,
+            FuelLog.liters_issued,
+            FuelLog.fuel_grade,
+            FuelLog.price_per_liter_lkr,
+            FuelLog.total_cost_lkr,
+            FuelLog.issue_date,
+            FuelLog.created_at,
+        )
+        .join(Vehicle, FuelLog.vehicle_id == Vehicle.id)
+        .outerjoin(Employee, Vehicle.employee_id == Employee.id)
+        .filter(FuelLog.issue_date >= start_dt, FuelLog.issue_date < end_dt)
+        .order_by(FuelLog.issue_date.desc())
+        .all()
+    )
+
+    result = []
+    for log in logs:
+        result.append(
+            FuelLogDetailResponse(
+                id=log.id,
+                vehicle_id=log.vehicle_id,
+                vehicle_number=log.vehicle_number,
+                vehicle_type=log.vehicle_type,
+                fuel_type=log.fuel_type,
+                employee_id=log.employee_id,
+                employee_name=log.employee_name,
+                receipt_number=log.receipt_number,
+                liters_issued=log.liters_issued,
+                fuel_grade=log.fuel_grade,
+                price_per_liter_lkr=log.price_per_liter_lkr,
+                total_cost_lkr=log.total_cost_lkr,
+                issue_date=log.issue_date,
+                created_at=log.created_at,
+            )
+        )
+    return result
 
 
 @router.get("/vehicles/{vehicle_id}/report", response_model=FuelUsageReportResponse)
