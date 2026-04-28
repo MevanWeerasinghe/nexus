@@ -47,10 +47,16 @@ class FuelLog(Base):
     fuel_grade = Column(String(50), nullable=False)
     price_per_liter_lkr = Column(Float, nullable=False)
     total_cost_lkr = Column(Float, nullable=False)
+    is_cancelled = Column(Boolean, nullable=False, server_default="0", index=True)
+    cancelled_at = Column(DateTime, nullable=True)
     issue_date = Column(DateTime, nullable=False, server_default=func.now(), index=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     vehicle = relationship("Vehicle", back_populates="fuel_logs")
+
+    @property
+    def status(self) -> str:
+        return "Cancelled" if self.is_cancelled else "Issued"
 
     def __repr__(self) -> str:
         return f"<FuelLog(id={self.id}, vehicle_id={self.vehicle_id}, liters_issued={self.liters_issued})>"

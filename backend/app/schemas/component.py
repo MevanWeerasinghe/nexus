@@ -33,7 +33,7 @@ class ComponentWarrantyResponse(ComponentWarrantyBase):
 class ComponentBase(BaseModel):
     """Base schema for Component."""
     name: str = Field(..., min_length=1, max_length=200)
-    category: str = Field(..., min_length=1, max_length=100)  # RAM, SSD, Battery, etc.
+    category_id: int
     serial_number: Optional[str] = Field(None, max_length=100)
     purchase_price: Optional[float] = Field(None, ge=0)
     purchase_date: Optional[datetime] = None
@@ -50,7 +50,7 @@ class ComponentCreate(ComponentBase):
 class ComponentUpdate(BaseModel):
     """Schema for updating a component."""
     name: Optional[str] = Field(None, min_length=1, max_length=200)
-    category: Optional[str] = Field(None, min_length=1, max_length=100)
+    category_id: Optional[int] = None
     serial_number: Optional[str] = Field(None, max_length=100)
     purchase_price: Optional[float] = Field(None, ge=0)
     purchase_date: Optional[datetime] = None
@@ -63,6 +63,9 @@ class ComponentUpdate(BaseModel):
 class ComponentResponse(ComponentBase):
     """Schema for component response."""
     id: int
+    category: Optional[str] = None
+    category_short_name: Optional[str] = None
+    category_type: Optional[str] = None
     status: str
     created_at: datetime
     updated_at: datetime

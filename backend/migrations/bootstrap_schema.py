@@ -29,10 +29,13 @@ from app.models.fams import Vehicle, FuelLog  # noqa: F401
 
 from migrations.add_supplier_id import migrate as migrate_add_supplier_id
 from migrations.add_asset_model_usage_and_unassign_reason import migrate as migrate_add_asset_model_usage_and_unassign_reason
+from migrations.add_asset_category_structure_and_auto_tag_prefix import migrate as migrate_add_asset_category_structure_and_auto_tag_prefix
+from migrations.add_component_category_fk import migrate as migrate_add_component_category_fk
 from migrations.add_employee_ip_address import migrate as migrate_add_employee_ip_address
 from migrations.add_fams_unlimited_fuel_flag import migrate as migrate_add_fams_unlimited_fuel_flag
 from migrations.add_vehicle_ownership_and_fuel_capacity import migrate as migrate_add_vehicle_ownership_and_fuel_capacity
 from migrations.add_fuel_manager_role import migrate as migrate_add_fuel_manager_role
+from migrations.add_fams_fuel_log_cancel_status import migrate as migrate_add_fams_fuel_log_cancel_status
 
 
 def run() -> None:
@@ -43,8 +46,11 @@ def run() -> None:
     print("[bootstrap] Running idempotent column migrations...")
     migrate_add_supplier_id()
     migrate_add_asset_model_usage_and_unassign_reason()
+    migrate_add_asset_category_structure_and_auto_tag_prefix()
+    migrate_add_component_category_fk()
     migrate_add_employee_ip_address()
     migrate_add_fams_unlimited_fuel_flag()
+    migrate_add_fams_fuel_log_cancel_status()
     migrate_add_vehicle_ownership_and_fuel_capacity()
     migrate_add_fuel_manager_role()
     print("[bootstrap] Column migration check complete.")

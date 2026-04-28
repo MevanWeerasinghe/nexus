@@ -18,7 +18,6 @@ import {
 import { Asset, Category } from "@/modules/itam/api";
 
 export interface EditAssetFormData {
-  asset_tag: string;
   serial_number: string;
   category_id: string;
   manufacturer: string;
@@ -71,12 +70,12 @@ export default function EditAssetDialog({
             <div className="p-6 space-y-5 max-h-[55vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit_asset_tag" className="text-xs uppercase tracking-wide text-muted-foreground">Asset Tag *</Label>
+                  <Label htmlFor="edit_asset_tag" className="text-xs uppercase tracking-wide text-muted-foreground">Asset Tag</Label>
                   <Input
                     id="edit_asset_tag"
-                    value={editForm.asset_tag}
-                    onChange={(e) => onFieldChange("asset_tag", e.target.value)}
-                    required
+                    value={editingAsset.asset_tag}
+                    readOnly
+                    disabled
                   />
                 </div>
                 <div className="space-y-2">
@@ -179,7 +178,7 @@ export default function EditAssetDialog({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button onClick={onSave} disabled={saving || !editForm.asset_tag || !editForm.serial_number || !editForm.category_id}>
+              <Button onClick={onSave} disabled={saving || !editForm.serial_number || !editForm.category_id}>
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>

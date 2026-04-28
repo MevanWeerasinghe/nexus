@@ -87,6 +87,9 @@ class FuelLogResponse(BaseModel):
     fuel_grade: FuelGrade
     price_per_liter_lkr: float
     total_cost_lkr: float
+    is_cancelled: bool
+    status: str = "Issued"
+    cancelled_at: Optional[datetime] = None
     issue_date: datetime
     created_at: datetime
 
@@ -107,6 +110,9 @@ class FuelLogDetailResponse(BaseModel):
     fuel_grade: FuelGrade
     price_per_liter_lkr: float
     total_cost_lkr: float
+    is_cancelled: bool
+    status: str
+    cancelled_at: Optional[datetime] = None
     issue_date: datetime
     created_at: datetime
 

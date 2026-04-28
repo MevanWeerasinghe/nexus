@@ -48,8 +48,19 @@ export interface UserUpdateRequest {
 export interface Category {
   id: number;
   name: string;
+  short_name: string;
+  category_type: "standalone" | "component";
+  parent_category_id?: number | null;
   description?: string;
   created_at: string;
+}
+
+export interface CategoryCreateRequest {
+  name: string;
+  short_name: string;
+  category_type: "standalone" | "component";
+  parent_category_id?: number | null;
+  description?: string;
 }
 
 export interface Employee {
@@ -130,7 +141,10 @@ export interface ComponentWarrantyCreate {
 export interface Component {
   id: number;
   name: string;
-  category: string;
+  category_id: number;
+  category?: string;
+  category_short_name?: string;
+  category_type?: string;
   serial_number?: string;
   purchase_price?: number;
   purchase_date?: string;
@@ -146,7 +160,7 @@ export interface Component {
 
 export interface ComponentCreate {
   name: string;
-  category: string;
+  category_id: number;
   serial_number?: string;
   purchase_price?: number;
   purchase_date?: string;
@@ -209,7 +223,6 @@ export interface Asset {
 }
 
 export interface AssetCreate {
-  asset_tag: string;
   serial_number?: string;
   category_id: number;
   supplier_id?: number;
@@ -382,11 +395,8 @@ export async function getCategories(): Promise<Category[]> {
   return response.data;
 }
 
-export async function createCategory(name: string, description?: string): Promise<Category> {
-  const response = await apiClient.post<Category>('/api/v1/assets/categories', {
-    name,
-    description,
-  });
+export async function createCategory(payload: CategoryCreateRequest): Promise<Category> {
+  const response = await apiClient.post<Category>('/api/v1/assets/categories', payload);
   return response.data;
 }
 
@@ -532,6 +542,9 @@ export interface FuelLog {
   fuel_grade: FuelGrade;
   price_per_liter_lkr: number;
   total_cost_lkr: number;
+  is_cancelled: boolean;
+  status: 'Issued' | 'Cancelled';
+  cancelled_at?: string | null;
   issue_date: string;
   created_at: string;
 }
@@ -565,6 +578,9 @@ export interface FuelLogDetail {
   fuel_grade: FuelGrade;
   price_per_liter_lkr: number;
   total_cost_lkr: number;
+  is_cancelled: boolean;
+  status: 'Issued' | 'Cancelled';
+  cancelled_at?: string | null;
   issue_date: string;
   created_at: string;
 }
@@ -665,6 +681,11 @@ export async function updateVehicleFuelLog(vehicleId: number, logId: number, dat
   return response.data;
 }
 
+export async function cancelVehicleFuelLog(vehicleId: number, logId: number): Promise<FuelLog> {
+  const response = await apiClient.post<FuelLog>(`/api/v1/fams/vehicles/${vehicleId}/fuel-logs/${logId}/cancel`);
+  return response.data;
+}
+
 export async function getFuelLogs(startDate: string, endDate: string): Promise<FuelLogDetail[]> {
   const response = await apiClient.get<FuelLogDetail[]>(
     `/api/v1/fams/fuel-logs?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`
@@ -748,7 +769,7 @@ export async function deleteSupplier(id: number): Promise<void> {
 
 export interface ComponentFilters {
   search?: string;
-  category?: string;
+  category_id?: number;
   status?: string;
   supplier_id?: number;
 }
@@ -757,7 +778,7 @@ export async function getComponents(filters?: ComponentFilters): Promise<Compone
   const params = new URLSearchParams();
   
   if (filters?.search) params.append('search', filters.search);
-  if (filters?.category) params.append('category', filters.category);
+  if (filters?.category_id) params.append('category_id', filters.category_id.toString());
   if (filters?.status) params.append('status', filters.status);
   if (filters?.supplier_id) params.append('supplier_id', filters.supplier_id.toString());
   
@@ -768,8 +789,8 @@ export async function getComponents(filters?: ComponentFilters): Promise<Compone
   return response.data;
 }
 
-export async function getAvailableComponents(category?: string): Promise<Component[]> {
-  const params = category ? `?category=${encodeURIComponent(category)}` : '';
+export async function getAvailableComponents(categoryId?: number): Promise<Component[]> {
+  const params = categoryId ? `?category_id=${encodeURIComponent(categoryId.toString())}` : '';
   const response = await apiClient.get<Component[]>(`/api/v1/components/available${params}`);
   return response.data;
 }

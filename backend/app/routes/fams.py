@@ -49,6 +49,7 @@ def _month_issued_for_vehicle(db: Session, vehicle: Vehicle, reference: Optional
         db.query(func.coalesce(func.sum(FuelLog.liters_issued), 0.0))
         .filter(
             FuelLog.vehicle_id == vehicle.id,
+            FuelLog.is_cancelled == False,
             FuelLog.issue_date >= month_start,
             FuelLog.issue_date < month_end,
         )
@@ -300,7 +301,12 @@ def get_vehicle_fuel_logs(
     if not vehicle:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
 
-    logs = db.query(FuelLog).filter(FuelLog.vehicle_id == vehicle_id).order_by(FuelLog.issue_date.desc()).all()
+    logs = (
+        db.query(FuelLog)
+        .filter(FuelLog.vehicle_id == vehicle_id, FuelLog.is_cancelled == False)
+        .order_by(FuelLog.issue_date.desc())
+        .all()
+    )
     return logs
 
 
@@ -349,6 +355,7 @@ def create_fuel_log(
         fuel_grade=payload.fuel_grade,
         price_per_liter_lkr=unit_price,
         total_cost_lkr=total_cost_lkr,
+        is_cancelled=False,
         issue_date=issue_date,
     )
     db.add(log)
@@ -372,6 +379,8 @@ def update_fuel_log(
     log = db.query(FuelLog).filter(FuelLog.id == log_id, FuelLog.vehicle_id == vehicle_id).first()
     if not log:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuel log not found")
+    if log.is_cancelled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cancelled fuel logs cannot be edited")
 
     _validate_grade_for_fuel_type(vehicle.fuel_type, payload.fuel_grade)
     _ensure_fuel_price_rows(db)
@@ -394,6 +403,7 @@ def update_fuel_log(
             db.query(func.coalesce(func.sum(FuelLog.liters_issued), 0.0))
             .filter(
                 FuelLog.vehicle_id == vehicle.id,
+                FuelLog.is_cancelled == False,
                 FuelLog.issue_date >= month_start,
                 FuelLog.issue_date < month_end,
                 FuelLog.id != log.id,
@@ -414,6 +424,31 @@ def update_fuel_log(
     log.price_per_liter_lkr = unit_price
     log.total_cost_lkr = round(payload.liters_issued * unit_price, 2)
     log.issue_date = issue_date
+
+    db.commit()
+    db.refresh(log)
+    return log
+
+
+@router.post("/vehicles/{vehicle_id}/fuel-logs/{log_id}/cancel", response_model=FuelLogResponse)
+def cancel_fuel_log(
+    vehicle_id: int,
+    log_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("fuel_manager")),
+):
+    vehicle = db.query(Vehicle).filter(Vehicle.id == vehicle_id).first()
+    if not vehicle:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vehicle not found")
+
+    log = db.query(FuelLog).filter(FuelLog.id == log_id, FuelLog.vehicle_id == vehicle_id).first()
+    if not log:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fuel log not found")
+    if log.is_cancelled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Fuel log is already cancelled")
+
+    log.is_cancelled = True
+    log.cancelled_at = datetime.now()
 
     db.commit()
     db.refresh(log)
@@ -447,6 +482,8 @@ def get_fuel_logs(
             FuelLog.fuel_grade,
             FuelLog.price_per_liter_lkr,
             FuelLog.total_cost_lkr,
+            FuelLog.is_cancelled,
+            FuelLog.cancelled_at,
             FuelLog.issue_date,
             FuelLog.created_at,
         )
@@ -473,6 +510,9 @@ def get_fuel_logs(
                 fuel_grade=log.fuel_grade,
                 price_per_liter_lkr=log.price_per_liter_lkr,
                 total_cost_lkr=log.total_cost_lkr,
+                is_cancelled=log.is_cancelled,
+                status="Cancelled" if log.is_cancelled else "Issued",
+                cancelled_at=log.cancelled_at,
                 issue_date=log.issue_date,
                 created_at=log.created_at,
             )
@@ -500,7 +540,12 @@ def get_vehicle_fuel_usage_report(
 
     logs = (
         db.query(FuelLog)
-        .filter(FuelLog.vehicle_id == vehicle_id, FuelLog.issue_date >= start_dt, FuelLog.issue_date < end_dt)
+        .filter(
+            FuelLog.vehicle_id == vehicle_id,
+            FuelLog.is_cancelled == False,
+            FuelLog.issue_date >= start_dt,
+            FuelLog.issue_date < end_dt,
+        )
         .order_by(FuelLog.issue_date.desc())
         .all()
     )

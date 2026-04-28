@@ -106,7 +106,6 @@ export default function AssetsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [editForm, setEditForm] = useState<EditAssetFormData>({
-    asset_tag: "",
     serial_number: "",
     category_id: "",
     manufacturer: "",
@@ -204,6 +203,8 @@ export default function AssetsPage() {
     }
   };
 
+  const standaloneCategories = categories.filter((category) => category.category_type === "standalone");
+
   const handleDeleteAsset = async (id: number) => {
     if (!confirm("Are you sure you want to delete this asset?")) return;
     
@@ -296,7 +297,6 @@ export default function AssetsPage() {
   const openEditDialog = (asset: Asset) => {
     setEditingAsset(asset);
     setEditForm({
-      asset_tag: asset.asset_tag,
       serial_number: asset.serial_number || "",
       category_id: asset.category_id.toString(),
       manufacturer: asset.manufacturer || "",
@@ -449,7 +449,6 @@ export default function AssetsPage() {
     setSaving(true);
     try {
       const updateData: any = {
-        asset_tag: editForm.asset_tag,
         serial_number: editForm.serial_number,
         category_id: parseInt(editForm.category_id),
         manufacturer: editForm.manufacturer || null,
@@ -602,7 +601,7 @@ export default function AssetsPage() {
               </DialogHeader>
               <AddAssetForm 
                 onSubmit={handleAddAsset} 
-                categories={categories}
+                categories={standaloneCategories}
               />
             </DialogContent>
           </Dialog>
@@ -645,7 +644,7 @@ export default function AssetsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((cat) => (
+            {standaloneCategories.map((cat) => (
               <SelectItem key={cat.id} value={cat.id.toString()}>
                 {cat.name}
               </SelectItem>
@@ -687,7 +686,16 @@ export default function AssetsPage() {
                   {assets.length > 0 ? (
                     assets.map((asset) => (
                       <TableRow key={asset.id}>
-                        <TableCell className="font-semibold">{asset.asset_tag}</TableCell>
+                        <TableCell className="font-semibold">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">{asset.asset_tag}</span>
+                            {asset.usage_type?.toLowerCase() === "personal" && (
+                              <span className="inline-flex items-center text-[10px] font-semibold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md uppercase tracking-wide mr-0">
+                                PSNL
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="font-mono text-sm">{asset.serial_number}</TableCell>
                         <TableCell>{getCategoryName(asset.category_id)}</TableCell>
                         <TableCell>
@@ -846,7 +854,7 @@ export default function AssetsPage() {
         onOpenChange={setEditDialogOpen}
         editingAsset={editingAsset}
         editForm={editForm}
-        categories={categories}
+        categories={standaloneCategories}
         saving={saving}
         onFieldChange={handleEditFormChange}
         onSave={handleEditAsset}

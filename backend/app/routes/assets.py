@@ -5,6 +5,7 @@ from sqlalchemy import func
 from typing import List, Optional
 from datetime import date, datetime, timedelta
 from dateutil.relativedelta import relativedelta
+import re
 import logging
 import io
 
@@ -26,6 +27,17 @@ from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/assets", tags=["assets"])
 logger = logging.getLogger(__name__)
+
+
+def _normalize_short_name(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", (value or "").upper())[:10]
+
+
+def _generate_asset_tag(prefix: str, asset_id: int) -> str:
+    # Global numbering is derived from the asset primary key, regardless of category.
+    # Keep at least 5 digits (e.g., 00001) and allow natural growth (e.g., 100001).
+    numeric_part = f"{asset_id:05d}" if asset_id < 100000 else str(asset_id)
+    return f"{prefix}{numeric_part}"
 
 
 def _generate_assets_pdf_with_reportlab(
@@ -435,7 +447,7 @@ def get_categories(
     current_user: User = Depends(get_current_user)
 ):
     """Get all categories for dropdown selection."""
-    categories = db.query(Category).order_by(Category.name).all()
+    categories = db.query(Category).order_by(Category.category_type.asc(), Category.name.asc()).all()
     return categories
 
 
@@ -454,7 +466,46 @@ def create_category(
             detail="Category with this name already exists"
         )
     
-    db_category = Category(**category_data.model_dump())
+    normalized_short_name = _normalize_short_name(category_data.short_name)
+    if len(normalized_short_name) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Category short name must contain at least 2 alphanumeric characters"
+        )
+
+    existing_short = db.query(Category).filter(Category.short_name == normalized_short_name).first()
+    if existing_short:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Category short name already exists"
+        )
+
+    payload = category_data.model_dump()
+    payload["short_name"] = normalized_short_name
+
+    if payload["category_type"] == "component":
+        parent_id = payload.get("parent_category_id")
+        if not parent_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Component category must be embedded into a standalone category"
+            )
+
+        parent_category = db.query(Category).filter(Category.id == parent_id).first()
+        if not parent_category:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Parent category not found"
+            )
+        if parent_category.category_type != "standalone":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Parent category must be a standalone category"
+            )
+    else:
+        payload["parent_category_id"] = None
+
+    db_category = Category(**payload)
     db.add(db_category)
     db.commit()
     db.refresh(db_category)
@@ -711,20 +762,17 @@ def create_asset(
     If warranty object is provided, creates a separate warranty record linked to the asset.
     The warranty_expiry_date is automatically calculated by adding warranty_months to purchase_date.
     """
-    # Check if asset tag already exists
-    existing = db.query(Asset).filter(Asset.asset_tag == asset_data.asset_tag).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Asset with this asset tag already exists"
-        )
-    
     # Verify category exists
     category = db.query(Category).filter(Category.id == asset_data.category_id).first()
     if not category:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Category not found"
+        )
+    if category.category_type != "standalone":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assets can only be created under standalone categories"
         )
     
     # Verify supplier exists if provided
@@ -744,6 +792,7 @@ def create_asset(
     # Extract warranty data before creating asset
     warranty_data = asset_data.warranty
     asset_dict = asset_data.model_dump(exclude={'warranty'})
+    asset_dict["asset_tag"] = "PENDING"
     
     # Create asset
     db_asset = Asset(
@@ -753,6 +802,7 @@ def create_asset(
     
     db.add(db_asset)
     db.flush()  # Get the asset ID without committing
+    db_asset.asset_tag = _generate_asset_tag(category.short_name, db_asset.id)
     
     # Create warranty record if warranty data provided
     if warranty_data:
@@ -809,17 +859,23 @@ def update_asset(
             detail="Asset not found"
         )
     
-    # Check for duplicate asset tag if being updated
-    if asset_data.asset_tag and asset_data.asset_tag != asset.asset_tag:
-        existing = db.query(Asset).filter(Asset.asset_tag == asset_data.asset_tag).first()
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Asset with this asset tag already exists"
-            )
-    
     # Update fields
     update_data = asset_data.model_dump(exclude_unset=True)
+
+    next_category_id = update_data.get("category_id")
+    if next_category_id is not None:
+        next_category = db.query(Category).filter(Category.id == next_category_id).first()
+        if not next_category:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Category not found"
+            )
+        if next_category.category_type != "standalone":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Assets can only be moved to standalone categories"
+            )
+        asset.asset_tag = _generate_asset_tag(next_category.short_name, asset.id)
     
     # If status is changing to Available, Retired, or Disposed, auto-unassign employee
     new_status = update_data.get('status')
@@ -1125,23 +1181,23 @@ def seed_categories(
     current_user: User = Depends(get_current_user)
 ):
     """Seed default categories (for development/setup)."""
-    default_categories = [
-        {"name": "Laptop", "description": "Portable computers"},
-        {"name": "Desktop", "description": "Desktop computers and workstations"},
-        {"name": "Monitor", "description": "Display monitors"},
-        {"name": "Printer", "description": "Printers and multifunction devices"},
-        {"name": "Router", "description": "Network routers"},
-        {"name": "Switch", "description": "Network switches"},
-        {"name": "Server", "description": "Servers and storage"},
-        {"name": "Scanner", "description": "Document scanners"},
-        {"name": "Keyboard", "description": "Keyboards and input devices"},
-        {"name": "Mouse", "description": "Mice and pointing devices"},
-        {"name": "Headset", "description": "Headsets and audio devices"},
-        {"name": "Other", "description": "Other IT equipment"},
+    standalone_categories = [
+        {"name": "Laptop", "short_name": "LAP", "category_type": "standalone", "description": "Portable computers"},
+        {"name": "Desktop", "short_name": "DST", "category_type": "standalone", "description": "Desktop computers and workstations"},
+        {"name": "Monitor", "short_name": "MNT", "category_type": "standalone", "description": "Display monitors"},
+        {"name": "Mobile", "short_name": "MBL", "category_type": "standalone", "description": "Mobile phones and tablets"},
+        {"name": "Printer", "short_name": "PRN", "category_type": "standalone", "description": "Printers and multifunction devices"},
+        {"name": "Other", "short_name": "OTH", "category_type": "standalone", "description": "Other IT equipment"},
+    ]
+
+    component_categories = [
+        {"name": "RAM", "short_name": "RAM", "category_type": "component", "description": "Memory modules", "parent_name": "Laptop"},
+        {"name": "SSD", "short_name": "SSD", "category_type": "component", "description": "Solid-state drives", "parent_name": "Laptop"},
+        {"name": "Battery", "short_name": "BAT", "category_type": "component", "description": "Replaceable batteries", "parent_name": "Laptop"},
     ]
     
     created_categories = []
-    for cat_data in default_categories:
+    for cat_data in standalone_categories:
         existing = db.query(Category).filter(Category.name == cat_data["name"]).first()
         if not existing:
             category = Category(**cat_data)
@@ -1150,6 +1206,34 @@ def seed_categories(
             db.refresh(category)
             created_categories.append(category)
         else:
+            created_categories.append(existing)
+
+    for cat_data in component_categories:
+        existing = db.query(Category).filter(Category.name == cat_data["name"]).first()
+        parent = db.query(Category).filter(Category.name == cat_data["parent_name"]).first()
+        if not parent:
+            continue
+
+        payload = {
+            "name": cat_data["name"],
+            "short_name": cat_data["short_name"],
+            "category_type": cat_data["category_type"],
+            "description": cat_data["description"],
+            "parent_category_id": parent.id,
+        }
+
+        if not existing:
+            category = Category(**payload)
+            db.add(category)
+            db.commit()
+            db.refresh(category)
+            created_categories.append(category)
+        else:
+            if existing.parent_category_id != parent.id or existing.category_type != "component":
+                existing.parent_category_id = parent.id
+                existing.category_type = "component"
+                db.commit()
+                db.refresh(existing)
             created_categories.append(existing)
     
     return created_categories

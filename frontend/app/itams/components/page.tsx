@@ -40,30 +40,14 @@ import {
   updateComponent,
   deleteComponent,
   getSuppliers,
+  getCategories,
   addComponentWarranty,
   Component,
   ComponentCreate,
+  Category,
   Supplier 
 } from "@/modules/itam/api";
 import { Switch } from "@/components/ui/switch";
-
-// Common component categories
-const COMPONENT_CATEGORIES = [
-  "RAM",
-  "SSD",
-  "HDD",
-  "Battery",
-  "Power Supply",
-  "Graphics Card",
-  "CPU",
-  "Motherboard",
-  "Network Card",
-  "Display Panel",
-  "Keyboard",
-  "Trackpad",
-  "Fan",
-  "Other"
-];
 
 const statusColors: Record<string, string> = {
   available: "bg-green-100 text-green-800",
@@ -78,6 +62,7 @@ const getStatusColor = (status: string): string => {
 
 export default function ComponentsPage() {
   const [components, setComponents] = useState<Component[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +81,7 @@ export default function ComponentsPage() {
   // Form state
   const [formData, setFormData] = useState<ComponentCreate & { status?: string; include_warranty?: boolean; warranty_provider?: string; warranty_duration?: number; warranty_start_date?: string; warranty_terms?: string }>({
     name: "",
-    category: "",
+    category_id: 0,
     serial_number: "",
     purchase_price: undefined,
     purchase_date: "",
@@ -158,7 +143,7 @@ export default function ComponentsPage() {
       setLoading(true);
       const filters: any = {};
       if (searchTerm) filters.search = searchTerm;
-      if (categoryFilter !== "all") filters.category = categoryFilter;
+      if (categoryFilter !== "all") filters.category_id = parseInt(categoryFilter);
       if (statusFilter !== "all") filters.status = statusFilter;
       
       const data = await getComponents(filters);
@@ -180,9 +165,19 @@ export default function ComponentsPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const data = await getCategories();
+      setCategories(data.filter((category) => category.category_type === "component"));
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+    }
+  };
+
   useEffect(() => {
     fetchComponents();
     fetchSuppliers();
+    fetchCategories();
   }, []);
 
   useEffect(() => {
@@ -195,7 +190,7 @@ export default function ComponentsPage() {
   const resetForm = () => {
     setFormData({
       name: "",
-      category: "",
+      category_id: 0,
       serial_number: "",
       purchase_price: undefined,
       purchase_date: "",
@@ -215,7 +210,7 @@ export default function ComponentsPage() {
     e.preventDefault();
     setFormError(null);
     
-    if (!formData.name.trim() || !formData.category) {
+    if (!formData.name.trim() || !formData.category_id) {
       setFormError("Component name and category are required");
       return;
     }
@@ -224,7 +219,7 @@ export default function ComponentsPage() {
       setIsSubmitting(true);
       const newComponent = await createComponent({
         name: formData.name.trim(),
-        category: formData.category,
+        category_id: formData.category_id,
         serial_number: formData.serial_number?.trim() || undefined,
         purchase_price: formData.purchase_price || undefined,
         purchase_date: toApiDateTime(formData.purchase_date),
@@ -262,7 +257,7 @@ export default function ComponentsPage() {
     e.preventDefault();
     setFormError(null);
     
-    if (!editingComponent || !formData.name.trim() || !formData.category) {
+    if (!editingComponent || !formData.name.trim() || !formData.category_id) {
       setFormError("Component name and category are required");
       return;
     }
@@ -271,7 +266,7 @@ export default function ComponentsPage() {
       setIsSubmitting(true);
       await updateComponent(editingComponent.id, {
         name: formData.name.trim(),
-        category: formData.category,
+        category_id: formData.category_id,
         serial_number: formData.serial_number?.trim() || undefined,
         purchase_price: formData.purchase_price || undefined,
         purchase_date: toApiDateTime(formData.purchase_date),
@@ -296,7 +291,7 @@ export default function ComponentsPage() {
     setEditingComponent(component);
     setFormData({
       name: component.name,
-      category: component.category,
+      category_id: component.category_id,
       serial_number: component.serial_number || "",
       purchase_price: component.purchase_price || undefined,
       purchase_date: component.purchase_date?.split('T')[0] || "",
@@ -322,8 +317,7 @@ export default function ComponentsPage() {
     }
   };
 
-  // Get unique categories from existing components
-  const uniqueCategories = [...new Set([...COMPONENT_CATEGORIES, ...components.map(c => c.category)])].sort();
+  const categoryNameById = new Map(categories.map((category) => [category.id, category.name]));
 
   // Stable input handlers to prevent focus loss
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -331,7 +325,7 @@ export default function ComponentsPage() {
   };
 
   const handleCategoryChange = (value: string) => {
-    setFormData(prev => ({ ...prev, category: value }));
+    setFormData(prev => ({ ...prev, category_id: parseInt(value) }));
   };
 
   const handleSerialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -471,13 +465,13 @@ export default function ComponentsPage() {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Category *</Label>
-                        <Select value={formData.category} onValueChange={handleCategoryChange}>
+                        <Select value={formData.category_id ? formData.category_id.toString() : ""} onValueChange={handleCategoryChange}>
                           <SelectTrigger className="h-9">
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            {COMPONENT_CATEGORIES.map((cat) => (
-                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            {categories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -729,8 +723,8 @@ export default function ComponentsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
-            {uniqueCategories.map((cat) => (
-              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -788,7 +782,7 @@ export default function ComponentsPage() {
                     <TableRow key={component.id}>
                       <TableCell className="font-medium">{component.name}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{component.category}</Badge>
+                        <Badge variant="outline">{component.category || categoryNameById.get(component.category_id) || "Unknown"}</Badge>
                       </TableCell>
                       <TableCell>
                         {component.serial_number || <span className="text-muted-foreground">—</span>}
@@ -891,15 +885,15 @@ export default function ComponentsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="edit-category">Category *</Label>
                   <Select
-                    value={formData.category}
+                    value={formData.category_id ? formData.category_id.toString() : ""}
                     onValueChange={handleCategoryChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {COMPONENT_CATEGORIES.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

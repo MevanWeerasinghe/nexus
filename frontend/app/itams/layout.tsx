@@ -12,6 +12,7 @@ import {
   Menu,
   Package,
   ShieldAlert,
+  Tags,
   Users,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -149,6 +150,16 @@ export default function ITAMLayout({
             >
               <Cpu className="h-5 w-5" />
               {sidebarOpen && "Components"}
+            </Button>
+          </Link>
+
+          <Link href="/itams/categories">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+            >
+              <Tags className="h-5 w-5" />
+              {sidebarOpen && "Categories"}
             </Button>
           </Link>
         </nav>

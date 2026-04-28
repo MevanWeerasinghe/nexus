@@ -15,6 +15,9 @@ if TYPE_CHECKING:
 class CategoryBase(BaseModel):
     """Base schema for Category."""
     name: str = Field(..., min_length=1, max_length=100)
+    short_name: str = Field(..., min_length=2, max_length=10)
+    category_type: Literal["standalone", "component"] = "standalone"
+    parent_category_id: Optional[int] = None
     description: Optional[str] = Field(None, max_length=255)
 
 
@@ -36,7 +39,6 @@ class CategoryResponse(CategoryBase):
 
 class AssetBase(BaseModel):
     """Base schema for Asset."""
-    asset_tag: str = Field(..., min_length=1, max_length=50)
     serial_number: Optional[str] = Field(None, max_length=100)
     category_id: int
     manufacturer: str = Field(..., min_length=1, max_length=100)
@@ -54,7 +56,6 @@ class AssetBase(BaseModel):
 
 class AssetCreate(BaseModel):
     """Schema for creating a new asset."""
-    asset_tag: str = Field(..., min_length=1, max_length=50)
     serial_number: Optional[str] = Field(None, max_length=100)
     category_id: int
     supplier_id: Optional[int] = None
@@ -75,7 +76,6 @@ class AssetCreate(BaseModel):
 
 class AssetUpdate(BaseModel):
     """Schema for updating an asset."""
-    asset_tag: Optional[str] = Field(None, min_length=1, max_length=50)
     serial_number: Optional[str] = Field(None, max_length=100)
     category_id: Optional[int] = None
     supplier_id: Optional[int] = None

@@ -36,11 +36,16 @@ class Category(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False, index=True)
+    short_name = Column(String(10), unique=True, nullable=False, index=True)
+    category_type = Column(String(20), nullable=False, server_default="standalone")
+    parent_category_id = Column(Integer, ForeignKey("categories.id", ondelete="NO ACTION"), nullable=True)
     description = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     
     # Relationship to assets
     assets = relationship("Asset", back_populates="category")
+    parent_category = relationship("Category", remote_side=[id], back_populates="child_categories")
+    child_categories = relationship("Category", back_populates="parent_category")
     
     def __repr__(self):
         return f"<Category(id={self.id}, name='{self.name}')>"

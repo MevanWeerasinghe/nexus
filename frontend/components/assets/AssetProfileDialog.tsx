@@ -96,6 +96,11 @@ export default function AssetProfileDialog({
                   <Badge className={`${getStatusColor(profileAsset.status)} text-sm px-3 py-1`}>
                     {profileAsset.status}
                   </Badge>
+                  {profileAsset.usage_type?.toLowerCase() === "personal" && (
+                    <div className="rounded-full border border-white/15 bg-amber-100/60 px-3 py-1 text-sm font-semibold text-amber-800">
+                      Personal
+                    </div>
+                  )}
                   <div className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm text-slate-200">
                     {getCategoryName(profileAsset.category_id)}
                   </div>

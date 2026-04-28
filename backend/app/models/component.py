@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 import enum
+from typing import Optional
 
 
 class ComponentStatus(str, enum.Enum):
@@ -20,7 +21,7 @@ class Component(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False, index=True)  # e.g., "16GB DDR4 RAM"
-    category = Column(String(100), nullable=False, index=True)  # e.g., "RAM", "SSD", "Battery"
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False, index=True)
     serial_number = Column(String(100), nullable=True, index=True)
     
     # Purchase info
@@ -42,9 +43,22 @@ class Component(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     
     # Relationships
+    category_ref = relationship("Category")
     supplier = relationship("Supplier", back_populates="components")
     installation_history = relationship("AssetComponentHistory", back_populates="component")
     warranty = relationship("ComponentWarranty", back_populates="component", uselist=False, cascade="all, delete-orphan")
+
+    @property
+    def category(self) -> Optional[str]:
+        return self.category_ref.name if self.category_ref else None
+
+    @property
+    def category_short_name(self) -> Optional[str]:
+        return self.category_ref.short_name if self.category_ref else None
+
+    @property
+    def category_type(self) -> Optional[str]:
+        return self.category_ref.category_type if self.category_ref else None
     
     def __repr__(self):
         return f"<Component(id={self.id}, name='{self.name}', status='{self.status}')>"

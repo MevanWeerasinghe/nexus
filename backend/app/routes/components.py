@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, date, timedelta
 
 from app.database import get_db
 from app.models.component import Component, AssetComponentHistory, ComponentStatus
 from app.models.component_warranty import ComponentWarranty
-from app.models.asset import Asset
+from app.models.asset import Asset, Category
 from app.models.user import User
 from app.schemas.component import (
     ComponentCreate, ComponentUpdate, ComponentResponse,
@@ -23,7 +24,8 @@ router = APIRouter(prefix="/api/v1/components", tags=["components"])
 @router.get("/", response_model=List[ComponentResponse])
 def get_components(
     search: str = Query(None, description="Search by component name"),
-    category: str = Query(None, description="Filter by category"),
+    category: str = Query(None, description="Filter by category name"),
+    category_id: int = Query(None, description="Filter by category id"),
     status: str = Query(None, description="Filter by status"),
     supplier_id: int = Query(None, description="Filter by supplier"),
     skip: int = Query(0, ge=0),
@@ -36,8 +38,14 @@ def get_components(
     
     if search:
         query = query.filter(Component.name.ilike(f"%{search}%"))
-    if category:
-        query = query.filter(Component.category == category)
+    if category_id:
+        query = query.filter(Component.category_id == category_id)
+    elif category:
+        category_row = db.query(Category).filter(func.lower(Category.name) == category.lower()).first()
+        if category_row:
+            query = query.filter(Component.category_id == category_row.id)
+        else:
+            return []
     if status:
         query = query.filter(Component.status == status)
     if supplier_id:
@@ -52,22 +60,34 @@ def get_component_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get list of unique component categories."""
-    categories = db.query(Component.category).distinct().all()
+    """Get list of component category names from category registry."""
+    categories = (
+        db.query(Category.name)
+        .filter(Category.category_type == "component")
+        .order_by(Category.name.asc())
+        .all()
+    )
     return [cat[0] for cat in categories if cat[0]]
 
 
 @router.get("/available", response_model=List[ComponentResponse])
 def get_available_components(
-    category: str = Query(None, description="Filter by category"),
+    category: str = Query(None, description="Filter by category name"),
+    category_id: int = Query(None, description="Filter by category id"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get all available (not installed) components."""
     query = db.query(Component).filter(Component.status == ComponentStatus.AVAILABLE.value)
     
-    if category:
-        query = query.filter(Component.category == category)
+    if category_id:
+        query = query.filter(Component.category_id == category_id)
+    elif category:
+        category_row = db.query(Category).filter(func.lower(Category.name) == category.lower()).first()
+        if category_row:
+            query = query.filter(Component.category_id == category_row.id)
+        else:
+            return []
     
     components = query.order_by(Component.name).all()
     return components
@@ -98,6 +118,12 @@ def create_component(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new component."""
+    category = db.query(Category).filter(Category.id == component_data.category_id).first()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    if category.category_type != "component":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Components must use a component category")
+
     db_component = Component(
         **component_data.model_dump(),
         status=ComponentStatus.AVAILABLE.value
@@ -126,6 +152,14 @@ def update_component(
         )
     
     update_data = component_data.model_dump(exclude_unset=True)
+    next_category_id = update_data.get("category_id")
+    if next_category_id is not None:
+        category = db.query(Category).filter(Category.id == next_category_id).first()
+        if not category:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        if category.category_type != "component":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Components must use a component category")
+
     for key, value in update_data.items():
         setattr(component, key, value)
     

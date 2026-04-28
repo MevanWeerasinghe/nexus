@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   ArrowLeft,
+  Ban,
   Calendar,
   Fuel,
   Infinity,
@@ -53,6 +54,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  cancelVehicleFuelLog,
   createVehicleFuelLog,
   getFuelPrices,
   getEmployees,
@@ -359,6 +361,20 @@ export default function VehicleDetailsPage() {
       setError(err.response?.data?.detail || "Failed to update fuel log");
     } finally {
       setEditFuelSubmitting(false);
+    }
+  };
+
+  const handleCancelFuelLog = async (log: FuelLog) => {
+    if (!vehicle) return;
+    const confirmed = window.confirm(`Cancel fuel log ${log.receipt_number}? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      await cancelVehicleFuelLog(vehicle.id, log.id);
+      await loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Failed to cancel fuel log");
     }
   };
 
@@ -1051,9 +1067,20 @@ export default function VehicleDetailsPage() {
                       <TableCell className="text-right">{formatCurrency(log.price_per_liter_lkr)}</TableCell>
                       <TableCell className="text-right font-semibold">{formatCurrency(log.total_cost_lkr)}</TableCell>
                       <TableCell className="text-right">
-                        <Button size="icon" variant="ghost" onClick={() => openFuelLogEditDialog(log)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <div className="inline-flex items-center gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => openFuelLogEditDialog(log)} title="Edit log">
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => handleCancelFuelLog(log)}
+                            title="Cancel log"
+                          >
+                            <Ban className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

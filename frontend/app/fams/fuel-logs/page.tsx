@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Calendar, Loader2, Search } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -244,7 +245,7 @@ export default function FuelLogsPage() {
                 <TableHeader className="sticky top-0 z-20 bg-background">
                   <TableRow>
                     <TableHead>Issued Date</TableHead>
-                    <TableHead>Receipt #</TableHead>
+                    <TableHead className="pl-2">Receipt #</TableHead>
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Employee</TableHead>
                     <TableHead>Fuel Grade</TableHead>
@@ -257,7 +258,16 @@ export default function FuelLogsPage() {
                   {filteredAndSortedLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="whitespace-nowrap text-sm">{formatDateTime(log.issue_date)}</TableCell>
-                      <TableCell className="font-medium">{log.receipt_number}</TableCell>
+                      <TableCell className="font-medium pl-2 pr-1">
+                        <div className="inline-flex items-center gap-1.5">
+                          <span>{log.receipt_number}</span>
+                          {log.is_cancelled && (
+                            <Badge variant="destructive" className="px-1.5 py-0 pr-1 text-[10px] leading-4 uppercase tracking-wide">
+                              Cancelled
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">{log.vehicle_number}</span>

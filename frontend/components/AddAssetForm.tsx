@@ -29,7 +29,6 @@ import { Loader2, Shield, Package, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const assetFormSchema = z.object({
-  asset_tag: z.string().min(1, "Asset Tag is required"),
   serial_number: z.string().min(1, "Serial Number is required"),
   category_id: z.string().min(1, "Category is required"),
   supplier_id: z.string().min(1, "Supplier is required"),
@@ -61,6 +60,7 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
   const [error, setError] = useState<string | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
+  const standaloneCategories = categories.filter((category) => category.category_type === "standalone");
 
   useEffect(() => {
     const fetchSuppliers = async () => {
@@ -79,7 +79,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: {
-      asset_tag: "",
       serial_number: "",
       category_id: "",
       supplier_id: "",
@@ -99,7 +98,9 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
   });
 
   const includeWarranty = form.watch("include_warranty");
+  const selectedCategoryId = form.watch("category_id");
   const selectedSupplierId = form.watch("supplier_id");
+  const selectedCategory = standaloneCategories.find((category) => category.id.toString() === selectedCategoryId);
   const selectedSupplier = suppliers.find((supplier) => supplier.id.toString() === selectedSupplierId);
   const canConfigureWarranty = Boolean(selectedSupplierId);
 
@@ -120,7 +121,6 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
 
     try {
       const data: AssetCreate = {
-        asset_tag: values.asset_tag,
         serial_number: values.serial_number,
         category_id: parseInt(values.category_id),
         supplier_id: parseInt(values.supplier_id),
@@ -178,35 +178,19 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
             </div>
 
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="asset_tag"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Asset Tag *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., LAP-001" className="h-9" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="serial_number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Serial Number *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Serial Number" className="h-9" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="serial_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Serial Number *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Serial Number" className="h-9" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <FormField
@@ -222,9 +206,9 @@ export default function AddAssetForm({ onSubmit, categories }: AddAssetFormProps
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories.map((cat) => (
+                          {standaloneCategories.map((cat) => (
                             <SelectItem key={cat.id} value={cat.id.toString()}>
-                              {cat.name}
+                              {cat.name} ({cat.short_name})
                             </SelectItem>
                           ))}
                         </SelectContent>
