@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import Base, engine
+from sqlalchemy import text
 
 # Import all models so Base.metadata is fully populated.
 from app.models.user import User, Role  # noqa: F401
@@ -38,6 +39,37 @@ from migrations.add_fuel_manager_role import migrate as migrate_add_fuel_manager
 from migrations.add_fams_fuel_log_cancel_status import migrate as migrate_add_fams_fuel_log_cancel_status
 
 
+def _reseed_identity_if_needed() -> None:
+    """
+    Validate and fix IDENTITY values for critical tables.
+    
+    Problem: If IDENT_CURRENT > MAX(id), new inserts will use high id values (gap).
+    Solution: Reseed IDENT_CURRENT to MAX(id) so next insert gets MAX(id) + 1.
+    
+    This prevents issues where identity values jump unexpectedly (e.g., 1004 instead of 4).
+    """
+    tables_to_check = ["assets", "employees", "users"]
+    
+    with engine.connect() as conn:
+        for table_name in tables_to_check:
+            try:
+                # Get current MAX(id)
+                max_result = conn.execute(text(f"SELECT COALESCE(MAX(id), 0) FROM {table_name}"))
+                max_id = max_result.fetchone()[0]
+                
+                # Get current identity value
+                ident_result = conn.execute(text(f"SELECT IDENT_CURRENT('{table_name}')"))
+                current_ident = ident_result.fetchone()[0]
+                
+                if current_ident > max_id:
+                    print(f"[bootstrap] Fixing {table_name} identity: IDENT_CURRENT={current_ident} > MAX(id)={max_id}")
+                    conn.execute(text(f"DBCC CHECKIDENT ('{table_name}', RESEED, {max_id})"))
+                    conn.commit()
+                    print(f"[bootstrap] ✓ {table_name} identity reseeded to {max_id}")
+            except Exception as e:
+                print(f"[bootstrap] Warning: Could not check identity for {table_name}: {e}")
+
+
 def run() -> None:
     print("[bootstrap] Creating missing tables (if any)...")
     Base.metadata.create_all(bind=engine)
@@ -54,6 +86,9 @@ def run() -> None:
     migrate_add_vehicle_ownership_and_fuel_capacity()
     migrate_add_fuel_manager_role()
     print("[bootstrap] Column migration check complete.")
+
+    print("[bootstrap] Validating and fixing IDENTITY sequences...")
+    _reseed_identity_if_needed()
 
     print("[bootstrap] Schema bootstrap finished successfully.")
 

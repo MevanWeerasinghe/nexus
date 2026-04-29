@@ -105,13 +105,25 @@ class Asset(Base):
     supplier = relationship("Supplier", back_populates="assets")
     
     # Relationship to warranty (one-to-one)
-    warranty = relationship("Warranty", back_populates="asset", uselist=False, cascade="all, delete-orphan")
+    warranty = relationship("Warranty", back_populates="asset", uselist=False, cascade="all, delete-orphan", passive_deletes=True)
     
     # Relationship to assignment history
-    assignment_history = relationship("AssignmentHistory", back_populates="asset", order_by="desc(AssignmentHistory.assigned_at)")
+    assignment_history = relationship(
+        "AssignmentHistory",
+        back_populates="asset",
+        order_by="desc(AssignmentHistory.assigned_at)",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     
     # Relationship to component history
-    component_history = relationship("AssetComponentHistory", back_populates="asset", order_by="desc(AssetComponentHistory.installed_date)")
+    component_history = relationship(
+        "AssetComponentHistory",
+        back_populates="asset",
+        order_by="desc(AssetComponentHistory.installed_date)",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     
     def __repr__(self):
         return f"<Asset(id={self.id}, asset_tag='{self.asset_tag}', status='{self.status}')>"

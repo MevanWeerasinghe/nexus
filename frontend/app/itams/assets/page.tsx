@@ -205,15 +205,38 @@ export default function AssetsPage() {
 
   const standaloneCategories = categories.filter((category) => category.category_type === "standalone");
 
+  const getDeleteAssetErrorMessage = (err: any) => {
+    const detail = err?.response?.data?.detail;
+    if (typeof detail === "string" && detail.trim()) {
+      return detail;
+    }
+    return "Failed to delete asset";
+  };
+
+  const handleDeleteBlocked = (message: string) => {
+    window.alert(message);
+  };
+
   const handleDeleteAsset = async (id: number) => {
     if (!confirm("Are you sure you want to delete this asset?")) return;
+
+    const asset = assets.find((item) => item.id === id);
+    if (asset?.employee_id) {
+      handleDeleteBlocked("This asset is currently assigned to an employee. First you need to unassign the employee before deleting it.");
+      return;
+    }
     
     try {
       await deleteAsset(id);
       fetchAssets();
     } catch (err: any) {
       console.error("Failed to delete asset:", err);
-      setError(err.response?.data?.detail || "Failed to delete asset");
+      const message = getDeleteAssetErrorMessage(err);
+      if (message.toLowerCase().includes("unassign")) {
+        handleDeleteBlocked(message);
+        return;
+      }
+      setError(message);
     }
   };
 
@@ -413,6 +436,11 @@ export default function AssetsPage() {
   const handleProfileDelete = async () => {
     if (!profileAsset) return;
     if (!confirm("Are you sure you want to delete this asset?")) return;
+
+    if (profileAsset.employee_id) {
+      handleDeleteBlocked("This asset is currently assigned to an employee. First you need to unassign the employee before deleting it.");
+      return;
+    }
     
     try {
       await deleteAsset(profileAsset.id);
@@ -420,7 +448,12 @@ export default function AssetsPage() {
       fetchAssets();
     } catch (err: any) {
       console.error("Failed to delete asset:", err);
-      setError(err.response?.data?.detail || "Failed to delete asset");
+      const message = getDeleteAssetErrorMessage(err);
+      if (message.toLowerCase().includes("unassign")) {
+        handleDeleteBlocked(message);
+        return;
+      }
+      setError(message);
     }
   };
 

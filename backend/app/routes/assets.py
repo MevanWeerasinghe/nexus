@@ -923,6 +923,12 @@ def delete_asset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Asset not found"
         )
+
+    if asset.employee_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This asset is currently assigned to an employee. Please unassign the employee before deleting it."
+        )
     
     db.delete(asset)
     db.commit()

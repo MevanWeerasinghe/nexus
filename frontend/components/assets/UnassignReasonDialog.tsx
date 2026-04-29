@@ -77,7 +77,7 @@ export default function UnassignReasonDialog({
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={submitting}>
-            {submitting ? "Removing..." : "Remove Asset"}
+            {submitting ? "Unassigning..." : "Unassign Asset"}
           </Button>
         </DialogFooter>
       </DialogContent>
