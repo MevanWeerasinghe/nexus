@@ -25,7 +25,6 @@ from app.models.employee import Employee  # noqa: F401
 from app.models.supplier import Supplier  # noqa: F401
 from app.models.warranty import Warranty  # noqa: F401
 from app.models.component import Component, AssetComponentHistory  # noqa: F401
-from app.models.component_warranty import ComponentWarranty  # noqa: F401
 from app.models.fams import Vehicle, FuelLog  # noqa: F401
 
 from migrations.add_supplier_id import migrate as migrate_add_supplier_id
@@ -37,6 +36,7 @@ from migrations.add_fams_unlimited_fuel_flag import migrate as migrate_add_fams_
 from migrations.add_vehicle_ownership_and_fuel_capacity import migrate as migrate_add_vehicle_ownership_and_fuel_capacity
 from migrations.add_fuel_manager_role import migrate as migrate_add_fuel_manager_role
 from migrations.add_fams_fuel_log_cancel_status import migrate as migrate_add_fams_fuel_log_cancel_status
+from migrations.migrate_component_warranty_to_warranties import migrate as migrate_component_warranty_to_warranties
 
 
 def _reseed_identity_if_needed() -> None:
@@ -85,6 +85,7 @@ def run() -> None:
     migrate_add_fams_fuel_log_cancel_status()
     migrate_add_vehicle_ownership_and_fuel_capacity()
     migrate_add_fuel_manager_role()
+    migrate_component_warranty_to_warranties()
     print("[bootstrap] Column migration check complete.")
 
     print("[bootstrap] Validating and fixing IDENTITY sequences...")

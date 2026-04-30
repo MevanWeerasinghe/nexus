@@ -1,6 +1,6 @@
 from app.models.asset import Asset, AssignmentHistory, Category
 from app.models.component import AssetComponentHistory, Component, ComponentStatus
-from app.models.component_warranty import ComponentWarranty
+# ComponentWarranty model removed; component warranties now stored in `warranties` table via Warranty.model
 from app.models.employee import Employee
 from app.models.supplier import Supplier
 from app.models.warranty import Warranty
@@ -19,7 +19,7 @@ def _import_itam_models() -> None:
     _ = Component
     _ = AssetComponentHistory
     _ = ComponentStatus
-    _ = ComponentWarranty
+    _ = Warranty
 
 
 ITAM_MODULE = ModuleDefinition(

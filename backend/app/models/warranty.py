@@ -10,7 +10,9 @@ class Warranty(Base):
     __tablename__ = "warranties"
     
     id = Column(Integer, primary_key=True, index=True)
-    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=True, unique=True, index=True)
+    # Optional component FK for unified warranty table
+    component_id = Column(Integer, ForeignKey("components.id", ondelete="CASCADE"), nullable=True, unique=True, index=True)
     
     provider_name = Column(String(200), nullable=False)
     duration_months = Column(Integer, nullable=False)
@@ -22,8 +24,9 @@ class Warranty(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     
-    # Relationship
+    # Relationships
     asset = relationship("Asset", back_populates="warranty")
+    component = relationship("Component", back_populates="warranty")
     
     def __repr__(self):
         return f"<Warranty(id={self.id}, asset_id={self.asset_id}, provider='{self.provider_name}')>"

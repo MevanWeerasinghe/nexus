@@ -54,6 +54,8 @@ import {
   removeComponent,
   generateAssetPdfReport,
   generateAssetProfilePdfReport,
+  addAssetWarranty,
+  updateAssetWarranty,
   Asset, 
   Category,
   Employee, 
@@ -113,6 +115,8 @@ export default function AssetsPage() {
     purchase_date: "",
     purchase_price: "",
     warranty_months: "",
+    warranty_provider: "",
+    warranty_start_date: "",
     location: "",
     notes: "",
   });
@@ -327,6 +331,8 @@ export default function AssetsPage() {
       purchase_date: asset.purchase_date ? asset.purchase_date.split("T")[0] : "",
       purchase_price: asset.purchase_price?.toString() || "",
       warranty_months: asset.warranty_months?.toString() || "",
+      warranty_provider: asset.warranty?.provider_name || "",
+      warranty_start_date: asset.warranty?.start_date ? asset.warranty.start_date.split("T")[0] : "",
       location: asset.location || "",
       notes: asset.notes || "",
     });
@@ -493,6 +499,24 @@ export default function AssetsPage() {
         notes: editForm.notes || null,
       };
       await updateAsset(editingAsset.id, updateData);
+      // Handle warranty create/update if warranty fields were provided
+      const hasWarrantyInput = (editForm.warranty_provider && editForm.warranty_provider.trim()) || (editForm.warranty_start_date && editForm.warranty_start_date.trim()) || (editForm.warranty_months && editForm.warranty_months.trim());
+      if (hasWarrantyInput) {
+        const warrantyPayload = {
+          provider_name: editForm.warranty_provider || (editingAsset.warranty?.provider_name || ""),
+          duration_months: editForm.warranty_months ? parseInt(editForm.warranty_months) : (editingAsset.warranty?.duration_months || 0),
+          start_date: editForm.warranty_start_date || (editingAsset.warranty?.start_date || null),
+        };
+        try {
+          if (editingAsset.warranty) {
+            await updateAssetWarranty(editingAsset.id, warrantyPayload as any);
+          } else {
+            await addAssetWarranty(editingAsset.id, warrantyPayload as any);
+          }
+        } catch (err) {
+          console.error("Failed to update asset warranty:", err);
+        }
+      }
       setEditDialogOpen(false);
       setEditingAsset(null);
       fetchAssets();

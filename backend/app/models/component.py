@@ -46,7 +46,8 @@ class Component(Base):
     category_ref = relationship("Category")
     supplier = relationship("Supplier", back_populates="components")
     installation_history = relationship("AssetComponentHistory", back_populates="component")
-    warranty = relationship("ComponentWarranty", back_populates="component", uselist=False, cascade="all, delete-orphan")
+    # Migrate to unified Warranty table (component warranties stored in warranties.component_id)
+    warranty = relationship("Warranty", back_populates="component", uselist=False, cascade="all, delete-orphan", passive_deletes=True)
 
     @property
     def category(self) -> Optional[str]:

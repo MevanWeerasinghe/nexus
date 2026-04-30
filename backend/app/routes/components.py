@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 
 from app.database import get_db
 from app.models.component import Component, AssetComponentHistory, ComponentStatus
-from app.models.component_warranty import ComponentWarranty
+from app.models.warranty import Warranty
 from app.models.asset import Asset, Category
 from app.models.user import User
 from app.schemas.component import (
@@ -239,10 +239,8 @@ def add_component_warranty(
             detail="Component not found"
         )
     
-    # Check if warranty already exists
-    existing_warranty = db.query(ComponentWarranty).filter(
-        ComponentWarranty.component_id == component_id
-    ).first()
+    # Check if warranty already exists (in unified warranties table)
+    existing_warranty = db.query(Warranty).filter(Warranty.component_id == component_id).first()
     
     if existing_warranty:
         raise HTTPException(
@@ -250,10 +248,10 @@ def add_component_warranty(
             detail="Component already has a warranty. Use PUT to update it."
         )
     
-    # Calculate end_date
-    end_date = warranty_data.start_date + timedelta(days=warranty_data.duration_months * 30)
-    
-    db_warranty = ComponentWarranty(
+    # Calculate end_date using calendar months
+    end_date = warranty_data.start_date + relativedelta(months=warranty_data.duration_months)
+
+    db_warranty = Warranty(
         component_id=component_id,
         provider_name=warranty_data.provider_name,
         duration_months=warranty_data.duration_months,
@@ -261,7 +259,7 @@ def add_component_warranty(
         end_date=end_date,
         terms_conditions=warranty_data.terms_conditions
     )
-    
+
     db.add(db_warranty)
     db.commit()
     db.refresh(db_warranty)
@@ -285,9 +283,7 @@ def update_component_warranty(
             detail="Component not found"
         )
     
-    warranty = db.query(ComponentWarranty).filter(
-        ComponentWarranty.component_id == component_id
-    ).first()
+    warranty = db.query(Warranty).filter(Warranty.component_id == component_id).first()
     
     if not warranty:
         raise HTTPException(
@@ -295,9 +291,9 @@ def update_component_warranty(
             detail="Component warranty not found"
         )
     
-    # Calculate end_date
-    end_date = warranty_data.start_date + timedelta(days=warranty_data.duration_months * 30)
-    
+    # Calculate end_date using calendar months
+    end_date = warranty_data.start_date + relativedelta(months=warranty_data.duration_months)
+
     warranty.provider_name = warranty_data.provider_name
     warranty.duration_months = warranty_data.duration_months
     warranty.start_date = warranty_data.start_date
@@ -325,9 +321,7 @@ def delete_component_warranty(
             detail="Component not found"
         )
     
-    warranty = db.query(ComponentWarranty).filter(
-        ComponentWarranty.component_id == component_id
-    ).first()
+    warranty = db.query(Warranty).filter(Warranty.component_id == component_id).first()
     
     if not warranty:
         raise HTTPException(
@@ -356,9 +350,7 @@ def get_component_warranty(
             detail="Component not found"
         )
     
-    warranty = db.query(ComponentWarranty).filter(
-        ComponentWarranty.component_id == component_id
-    ).first()
+    warranty = db.query(Warranty).filter(Warranty.component_id == component_id).first()
     
     if not warranty:
         raise HTTPException(

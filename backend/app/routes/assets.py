@@ -808,7 +808,7 @@ def create_asset(
     if warranty_data:
         # Calculate warranty end date
         warranty_end_date = warranty_data.start_date + relativedelta(months=warranty_data.duration_months)
-        
+
         db_warranty = Warranty(
             asset_id=db_asset.id,
             provider_name=warranty_data.provider_name,
@@ -818,11 +818,140 @@ def create_asset(
             terms_conditions=warranty_data.terms_conditions
         )
         db.add(db_warranty)
+
+        # Keep legacy fields in sync so list views and reports that read asset columns show correct values
+        db_asset.warranty_months = warranty_data.duration_months
+        db_asset.warranty_expiry_date = warranty_end_date
     
     db.commit()
     db.refresh(db_asset)
     
     return db_asset
+
+
+# ============== Asset Warranty Endpoints ==============
+
+@router.post("/{asset_id}/warranty", response_model=None, status_code=status.HTTP_201_CREATED)
+def add_asset_warranty(
+    asset_id: int,
+    warranty_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Add warranty for an asset."""
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    existing = db.query(Warranty).filter(Warranty.asset_id == asset_id).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Asset already has a warranty. Use PUT to update it.")
+
+    # Calculate end_date using calendar months
+    duration = int(warranty_data.get('duration_months')) if warranty_data.get('duration_months') is not None else 0
+    start_date = warranty_data.get('start_date')
+    end_date = None
+    if start_date and duration:
+        end_date = (start_date + relativedelta(months=duration)) if isinstance(start_date, date) else None
+
+    db_warranty = Warranty(
+        asset_id=asset_id,
+        provider_name=warranty_data.get('provider_name'),
+        duration_months=duration,
+        start_date=start_date,
+        end_date=end_date,
+        terms_conditions=warranty_data.get('terms_conditions')
+    )
+    db.add(db_warranty)
+
+    # Keep legacy fields in sync
+    if end_date:
+        asset.warranty_months = duration
+        asset.warranty_expiry_date = end_date
+
+    db.commit()
+    db.refresh(db_warranty)
+
+    return db_warranty
+
+
+@router.put("/{asset_id}/warranty", response_model=None)
+def update_asset_warranty(
+    asset_id: int,
+    warranty_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update existing warranty for an asset."""
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    warranty = db.query(Warranty).filter(Warranty.asset_id == asset_id).first()
+    if not warranty:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset warranty not found")
+
+    duration = int(warranty_data.get('duration_months')) if warranty_data.get('duration_months') is not None else warranty.duration_months
+    start_date = warranty_data.get('start_date') or warranty.start_date
+    end_date = (start_date + relativedelta(months=duration)) if isinstance(start_date, date) else None
+
+    warranty.provider_name = warranty_data.get('provider_name', warranty.provider_name)
+    warranty.duration_months = duration
+    warranty.start_date = start_date
+    warranty.end_date = end_date
+    warranty.terms_conditions = warranty_data.get('terms_conditions', warranty.terms_conditions)
+
+    # Sync legacy fields
+    if end_date:
+        asset.warranty_months = duration
+        asset.warranty_expiry_date = end_date
+
+    db.commit()
+    db.refresh(warranty)
+
+    return warranty
+
+
+@router.delete("/{asset_id}/warranty", status_code=status.HTTP_204_NO_CONTENT)
+def delete_asset_warranty(
+    asset_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete warranty for an asset."""
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    warranty = db.query(Warranty).filter(Warranty.asset_id == asset_id).first()
+    if not warranty:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset warranty not found")
+
+    db.delete(warranty)
+    # Clear legacy fields
+    asset.warranty_months = None
+    asset.warranty_expiry_date = None
+    db.commit()
+
+    return None
+
+
+@router.get("/{asset_id}/warranty", response_model=None)
+def get_asset_warranty(
+    asset_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get warranty for an asset."""
+    asset = db.query(Asset).filter(Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+    warranty = db.query(Warranty).filter(Warranty.asset_id == asset_id).first()
+    if not warranty:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset warranty not found")
+
+    return warranty
 
 
 @router.get("/{asset_id}", response_model=AssetResponse)
@@ -905,6 +1034,15 @@ def update_asset(
     
     db.commit()
     db.refresh(asset)
+    
+    # Ensure legacy asset warranty fields reflect the canonical Warranty record if present
+    if asset.warranty:
+        try:
+            asset.warranty_months = asset.warranty.duration_months
+            asset.warranty_expiry_date = asset.warranty.end_date
+        except Exception:
+            # In case of unexpected warranty state, keep existing fields
+            pass
     
     return asset
 

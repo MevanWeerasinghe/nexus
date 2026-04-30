@@ -852,6 +852,33 @@ export async function getComponentWarranty(componentId: number): Promise<Compone
   return response.data;
 }
 
+// ============== Asset Warranty Functions ==============
+
+export async function addAssetWarranty(
+  assetId: number,
+  data: { provider_name: string; duration_months: number; start_date: string; terms_conditions?: string }
+): Promise<any> {
+  const response = await apiClient.post(`/api/v1/assets/${assetId}/warranty`, data);
+  return response.data;
+}
+
+export async function updateAssetWarranty(
+  assetId: number,
+  data: { provider_name: string; duration_months: number; start_date: string; terms_conditions?: string }
+): Promise<any> {
+  const response = await apiClient.put(`/api/v1/assets/${assetId}/warranty`, data);
+  return response.data;
+}
+
+export async function deleteAssetWarranty(assetId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/assets/${assetId}/warranty`);
+}
+
+export async function getAssetWarranty(assetId: number): Promise<any> {
+  const response = await apiClient.get(`/api/v1/assets/${assetId}/warranty`);
+  return response.data;
+}
+
 // ============== Asset Component Functions ==============
 
 export async function getAssetComponents(assetId: number): Promise<AssetComponentHistory[]> {
